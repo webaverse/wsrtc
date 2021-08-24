@@ -1,7 +1,11 @@
-"use strict";
+import opusscript_native_wasm from './opusscript_native_wasm.js';
+const opusscript_native = opusscript_native_wasm();
 
-let opusscript_native_nasm = null;
-let opusscript_native_wasm = null;
+const exports = {};
+const module = {exports};
+
+/* let opusscript_native_nasm = null;
+let opusscript_native_wasm = null; */
 
 var OpusApplication = {
     VOIP: 2048,
@@ -34,7 +38,7 @@ function OpusScript(samplingRate, channels, application, options) {
     this.channels = channels || 1;
     this.application = application || OpusApplication.AUDIO;
 
-    let opusscript_native = null;
+    /* let opusscript_native = null;
     if(this.options.wasm) {
         if(!opusscript_native_wasm) {
             opusscript_native_wasm = require("./build/opusscript_native_wasm.js")();
@@ -45,7 +49,7 @@ function OpusScript(samplingRate, channels, application, options) {
             opusscript_native_nasm = require("./build/opusscript_native_nasm.js")();
         }
         opusscript_native = opusscript_native_nasm;
-    }
+    } */
     this.handler = new opusscript_native.OpusScriptHandler(this.samplingRate, this.channels, this.application);
 
     this.inPCMLength = MAX_FRAME_SIZE * this.channels * 2;
@@ -114,3 +118,5 @@ OpusScript.VALID_SAMPLING_RATES = VALID_SAMPLING_RATES;
 OpusScript.MAX_PACKET_SIZE = MAX_PACKET_SIZE;
 
 module.exports = OpusScript;
+
+export default module.exports;
