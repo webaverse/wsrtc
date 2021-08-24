@@ -463,6 +463,12 @@ window.addEventListener('click', async e => {
   await XRRTC.waitForReady();
   const xrrtc = new XRRTC('wss://' + window.location.host);
   xrrtc.addEventListener('open', e => {
+    xrrtc.localUser.setPose(
+      Float32Array.from([1, 2, 3]),
+      Float32Array.from([1, 0, 0, 0]),
+      Float32Array.from([3, 3, 3]),
+    );
+    
     function makeid(length) {
       let result = '';
       const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
