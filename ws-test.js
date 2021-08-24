@@ -12,22 +12,17 @@ const _ensureAudioContextInit = async () => {
 };
 
 class Pose extends EventTarget {
-  constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1]), parent) {
+  constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
     super();
     
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
-    this.parent = parent;
   }
   set(position, quaternion, scale) {
     this.position.set(position);
     this.quaternion.set(quaternion);
     this.scale.set(scale);
-    
-    if (this.parent?.parent?.state === 'open') {
-      this.parent.parent.pushUserPose(position, quaternion, scale);
-    }
   }
   readUpdate(poseBuffer) {
     const position = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset, 3);
@@ -41,11 +36,10 @@ class Pose extends EventTarget {
   }
 }
 class Metadata extends EventTarget {
-  constructor(parent) {
+  constructor() {
     super();
     
     this.data = {};
-    this.parent = parent;
   }
   get(k) {
     return this.data[k];
@@ -53,10 +47,6 @@ class Metadata extends EventTarget {
   set(o) {
     for (const key in o) {
       this.data[key] = o[key];
-    }
-
-    if (this.parent?.parent?.state === 'open') {
-      this.parent.parent.pushUserMetadata(o);
     }
   }
   readUpdate(o) {
@@ -83,8 +73,8 @@ class Player extends EventTarget {
     
     this.id = id;
     this.parent = parent;
-    this.pose = new Pose(undefined, undefined, undefined, this);
-    this.metadata = new Metadata(this);
+    this.pose = new Pose(undefined, undefined, undefined);
+    this.metadata = new Metadata();
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
@@ -146,9 +136,17 @@ class LocalPlayer extends Player {
   }
   setPose(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
     this.pose.set(position, quaternion, scale);
+    
+    if (this.id) {
+      this.parent.pushUserPose(position, quaternion, scale);
+    }
   }
   setMetadata(o) {
     this.metadata.set(o);
+    
+    if (this.id) {
+      this.parent.pushUserMetadata(o);
+    }
   }
 }
 class XRRTC extends EventTarget {
