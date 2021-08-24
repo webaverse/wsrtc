@@ -25,8 +25,8 @@ class Pose extends EventTarget {
     this.quaternion.set(quaternion);
     this.scale.set(scale);
     
-    if (this.parent.state === 'open') {
-      this.parent.pushUserPose(position, quaternion, scale);
+    if (this.parent?.parent?.state === 'open') {
+      this.parent.parent.pushUserPose(position, quaternion, scale);
     }
   }
   readUpdate(poseBuffer) {
@@ -55,8 +55,8 @@ class Metadata extends EventTarget {
       this.data[key] = o[key];
     }
 
-    if (this.parent.state === 'open') {
-      this.parent.pushUserMetadata(o);
+    if (this.parent?.parent?.state === 'open') {
+      this.parent.parent.pushUserMetadata(o);
     }
   }
   readUpdate(o) {
@@ -182,9 +182,6 @@ class XRRTC extends EventTarget {
                 users,
               }, null, 2));
               
-              this.state = 'open';
-              this.dispatchEvent(new MessageEvent('open'));
-              
               for (const userId of users) {
                 if (userId !== id) {
                   const player = new Player(userId, null);
@@ -202,8 +199,13 @@ class XRRTC extends EventTarget {
                 this.dispatchEvent(new MessageEvent('close'));
               });
               
+              // emit open event
+              this.state = 'open';
+              this.dispatchEvent(new MessageEvent('open'));
+              
               // latch local user id
               this.localUser.id = id;
+              
               // send initial pose/metadata
               this.pushUserState();
               
@@ -325,31 +327,37 @@ class XRRTC extends EventTarget {
     });
   }
   pushUserState() {
-    this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale);
-    this.pushUserMetadata(this.localUser.metadata.data);
+    if (this.localUser.id) {
+      this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale);
+      this.pushUserMetadata(this.localUser.metadata.data);
+    }
   }
   pushUserPose(p, q, s) {
-    const data = new Float32Array(1 + 3 + 4 + 3);
-    const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-    uint32Array[0] = this.localUser.id;
-    const position = new Float32Array(data.buffer, data.byteOffset + 1*Float32Array.BYTES_PER_ELEMENT, 3);
-    position.set(p);
-    const quaternion = new Float32Array(data.buffer, data.byteOffset + (1+3)*Float32Array.BYTES_PER_ELEMENT, 4);
-    quaternion.set(q);
-    const scale = new Float32Array(data.buffer, data.byteOffset + (1+3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
-    scale.set(s);
-    this.ws.send(JSON.stringify({
-      method: 'pose',
-      id: this.localUser.id,
-    }));
-    this.ws.send(data);
+    if (this.localUser.id) {
+      const data = new Float32Array(1 + 3 + 4 + 3);
+      const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
+      uint32Array[0] = this.localUser.id;
+      const position = new Float32Array(data.buffer, data.byteOffset + 1*Float32Array.BYTES_PER_ELEMENT, 3);
+      position.set(p);
+      const quaternion = new Float32Array(data.buffer, data.byteOffset + (1+3)*Float32Array.BYTES_PER_ELEMENT, 4);
+      quaternion.set(q);
+      const scale = new Float32Array(data.buffer, data.byteOffset + (1+3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+      scale.set(s);
+      this.ws.send(JSON.stringify({
+        method: 'pose',
+        id: this.localUser.id,
+      }));
+      this.ws.send(data);
+    }
   }
   pushUserMetadata(o) {
-    this.ws.send(JSON.stringify({
-      method: 'metadata',
-      id: this.localUser.id,
-      args: o,
-    }));
+    if (this.localUser.id) {
+      this.ws.send(JSON.stringify({
+        method: 'metadata',
+        id: this.localUser.id,
+        args: o,
+      }));
+    }
   }
   close() {
     if (this.state === 'open') {
@@ -455,15 +463,6 @@ window.addEventListener('click', async e => {
   await XRRTC.waitForReady();
   const xrrtc = new XRRTC('wss://' + window.location.host);
   xrrtc.addEventListener('open', e => {
-    xrrtc.enableMic();
-  });
-  xrrtc.addEventListener('join', e => {
-    const player = e.data;
-    console.log('join', player);
-    player.audioNode.connect(audioCtx.destination);
-    player.pose.addEventListener('update', e => {
-      console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
-    });
     function makeid(length) {
       let result = '';
       const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -475,6 +474,15 @@ window.addEventListener('click', async e => {
     const name = makeid(5);
     xrrtc.localUser.setMetadata({
       name,
+    });
+    
+    xrrtc.enableMic();
+  });
+  xrrtc.addEventListener('join', e => {
+    const player = e.data;
+    player.audioNode.connect(audioCtx.destination);
+    player.pose.addEventListener('update', e => {
+      console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
     });
     player.metadata.addEventListener('update', e => {
       console.log('metadata update', player.id, player.metadata.toJSON());
