@@ -457,47 +457,4 @@ XRRTC.getAudioContext = () => {
   return audioCtx;
 };
 
-window.addEventListener('click', async e => {
-  await XRRTC.waitForReady();
-  const xrrtc = new XRRTC('wss://' + window.location.host);
-  xrrtc.addEventListener('open', e => {
-    xrrtc.localUser.setPose(
-      Float32Array.from([1, 2, 3]),
-      Float32Array.from([1, 0, 0, 0]),
-      Float32Array.from([3, 3, 3]),
-    );
-    
-    function makeid(length) {
-      let result = '';
-      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * characters.length));
-      }
-      return result;
-    }
-    const name = makeid(5);
-    xrrtc.localUser.setMetadata({
-      name,
-    });
-    
-    xrrtc.enableMic();
-  });
-  xrrtc.addEventListener('join', e => {
-    const player = e.data;
-    player.audioNode.connect(audioCtx.destination);
-    player.pose.addEventListener('update', e => {
-      console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
-    });
-    player.metadata.addEventListener('update', e => {
-      console.log('metadata update', player.id, player.metadata.toJSON());
-    });
-    player.addEventListener('volume', e => {
-      // console.log('volume', e.data);
-    });
-    player.addEventListener('leave', e => {
-      console.log('leave', player);
-    });
-  });
-}, {
-  once: true,
-});
+export default XRRTC;
