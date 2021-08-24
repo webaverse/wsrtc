@@ -1,0 +1,27 @@
+{
+  "name": "xrrtc",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webaverse/xrrtc.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/webaverse/xrrtc/issues"
+  },
+  "homepage": "https://github.com/webaverse/xrrtc",
+  "dependencies": {
+    "express": "^4.17.1",
+    "ws": "^8.2.0"
+  },
+  "browserslist": [
+    "last 1 chrome version"
+  ]
+}
