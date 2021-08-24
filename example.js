@@ -35,8 +35,10 @@ form.addEventListener('submit', e => {
     });
     
     const _updatePlayerDomPosition = () => {
-      playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2})`;
+      playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2 + player.volume.value/10})`;
+      playerEl.style.backgroundColor = player.pose.position[2] ? '#333' : null;
       volumeEl.style.height = `${player.volume.value * 100}%`;
+      volumeEl.style.filter = `hue-rotate(${player.pose.position[2] ? 180 : 0}deg)`;
     };
     _updatePlayerDomPosition();
     player.pose.addEventListener('update', _updatePlayerDomPosition);

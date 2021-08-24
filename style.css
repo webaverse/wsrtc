@@ -55,7 +55,7 @@ form > input[type=submit]:active {
 .player {
   position: absolute;
   top: -32px;
-  top: -32px;
+  left: -32px;
   width: 64px;
   height: 64px;
   background-color: #000;
