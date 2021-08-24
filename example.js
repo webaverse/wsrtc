@@ -1,5 +1,6 @@
 import XRRTC from './xrrtc.js';
 
+const container = document.getElementById('container');
 const form = document.getElementById('form');
 const input = form.querySelector('input[type=text]');
 function parseQuery(queryString) {
@@ -20,6 +21,20 @@ form.addEventListener('submit', e => {
   history.pushState({}, '', location.protocol + '//' + location.host + '?u=' + encodeURIComponent(u));
   form.style.display = 'none';
 
+  const _createPlayerDom = player => {
+    const playerEl = document.createElement('div');
+    playerEl.classList.add('player');
+    container.appendChild(playerEl);
+    player.addEventListener('leave', e => {
+      container.removeChild(playerEl);
+    });
+    
+    const _updatePlayerDomPosition = () => {
+      playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2})`;
+    };
+    _updatePlayerDomPosition();
+    player.pose.addEventListener('update', _updatePlayerDomPosition);
+  };
   const _startXrrtc = async () => {
     await XRRTC.waitForReady();
     const xrrtc = new XRRTC(u);
@@ -47,7 +62,7 @@ form.addEventListener('submit', e => {
       
       const mousemove = e => {
         const x = e.clientX / window.innerWidth;
-        const y = 1 - (e.clientY / window.innerHeight);
+        const y = e.clientY / window.innerHeight;
         xrrtc.localUser.setPose(
           Float32Array.from([
             x,
@@ -87,7 +102,7 @@ form.addEventListener('submit', e => {
       const player = e.data;
       player.audioNode.connect(XRRTC.getAudioContext().destination);
       player.pose.addEventListener('update', e => {
-        console.log('pose update', player.id, player.pose.position.join(','));
+        // console.log('pose update', player.id, player.pose.position.join(','));
       });
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
@@ -98,6 +113,8 @@ form.addEventListener('submit', e => {
       player.addEventListener('leave', e => {
         console.log('leave', player);
       });
+      
+      _createPlayerDom(player);
     });
   };
   _startXrrtc();

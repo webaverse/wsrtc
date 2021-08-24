@@ -2,6 +2,9 @@ body {
   margin: 0;
   font-family: 'Bangers';
 }
+* {
+  box-sizing: border-box;
+}
 form {
   display: flex;
   width: 100%;
@@ -38,4 +41,23 @@ form > input[type=submit]:hover {
 }
 form > input[type=submit]:active {
   background-color: #43a047;
+}
+.container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  /* perspective: 1200px;
+  perspective-origin: 50% 50%; */
+  overflow: hidden;
+}
+.player {
+  position: absolute;
+  top: -32px;
+  top: -32px;
+  width: 64px;
+  height: 64px;
+  background-color: #000;
+  border-radius: 5px;
 }
