@@ -134,8 +134,9 @@ class LocalPlayer extends Player {
   constructor(...args) {
     super(...args);
   }
-  setPose(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+  setPose(position = this.pose.position, quaternion = this.pose.quaternion, scale = this.pose.scale) {
     this.pose.set(position, quaternion, scale);
+    this.pose.dispatchEvent(new MessageEvent('update'));
     
     if (this.id) {
       this.parent.pushUserPose(position, quaternion, scale);
@@ -143,6 +144,15 @@ class LocalPlayer extends Player {
   }
   setMetadata(o) {
     this.metadata.set(o);
+
+    const keys = Object.keys(o);
+    if (keys.length > 0) {
+      this.metadata.dispatchEvent(new MessageEvent('update', {
+        data: {
+          keys,
+        },
+      }));
+    }
     
     if (this.id) {
       this.parent.pushUserMetadata(o);

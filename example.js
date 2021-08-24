@@ -25,7 +25,7 @@ form.addEventListener('submit', e => {
     const xrrtc = new XRRTC(u);
     xrrtc.addEventListener('open', e => {
       xrrtc.localUser.setPose(
-        Float32Array.from([1, 2, 3]),
+        Float32Array.from([1, 2, 0]),
         Float32Array.from([1, 0, 0, 0]),
         Float32Array.from([3, 3, 3]),
       );
@@ -44,12 +44,50 @@ form.addEventListener('submit', e => {
       });
       
       xrrtc.enableMic();
+      
+      const mousemove = e => {
+        const x = e.clientX / window.innerWidth;
+        const y = 1 - (e.clientY / window.innerHeight);
+        xrrtc.localUser.setPose(
+          Float32Array.from([
+            x,
+            y,
+            xrrtc.localUser.pose.position[2],
+          ]),
+        );
+      };
+      const mousedown = e => {
+        xrrtc.localUser.setPose(
+          Float32Array.from([
+            xrrtc.localUser.pose.position[0],
+            xrrtc.localUser.pose.position[1],
+            1,
+          ]),
+        );
+      };
+      const mouseup = e => {
+        xrrtc.localUser.setPose(
+          Float32Array.from([
+            xrrtc.localUser.pose.position[0],
+            xrrtc.localUser.pose.position[1],
+            0,
+          ]),
+        );
+      };
+      document.addEventListener('mousemove', mousemove);
+      document.addEventListener('mousedown', mousedown);
+      document.addEventListener('mouseup', mouseup);
+      xrrtc.addEventListener('close', e => {
+        document.removeEventListener('mousemove', mousemove);
+        document.removeEventListener('mousedown', mousedown);
+        document.removeEventListener('mouseup', mouseup);
+      });
     });
     xrrtc.addEventListener('join', e => {
       const player = e.data;
       player.audioNode.connect(XRRTC.getAudioContext().destination);
       player.pose.addEventListener('update', e => {
-        console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
+        console.log('pose update', player.id, player.pose.position.join(','));
       });
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
