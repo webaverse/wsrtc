@@ -1,4 +1,5 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
+import {getAudioDataBuffer} from './ws-util.js';
 
 let audioCtx = null;
 const _ensureAudioContextInit = async () => {
@@ -96,16 +97,7 @@ class Player extends EventTarget {
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
-      let channelData;
-      if (audioData.copyTo) { // new api
-        channelData = new Float32Array(audioData.numberOfFrames);
-        audioData.copyTo(channelData, {
-          planeIndex: 0,
-          frameCount: audioData.numberOfFrames,
-        });
-      } else { // old api
-        channelData = audioData.buffer.getChannelData(0);
-      }
+      const channelData = getAudioDataBuffer(audioData);
       audioWorkletNode.port.postMessage(channelData, [channelData.buffer]);
     };
     function onDecoderError(err) {
