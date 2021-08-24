@@ -11,11 +11,26 @@ const _ensureAudioContextInit = async () => {
   }
 };
 
+class Pose {
+  constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+    this.position = position;
+    this.quaternion = quaternion;
+    this.scale = scale;
+  }
+  set(position, quaternion, scale) {
+    this.position.set(position);
+    this.quaternion.set(quaternion);
+    this.scale.set(scale);
+  }
+}
 class Player extends EventTarget {
-  constructor(id) {
+  constructor(id, parent) {
     super();
     
     this.id = id;
+    this.parent = parent;
+    this.pose = new Pose();
+    this.metadata = {};
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
@@ -71,12 +86,26 @@ class Player extends EventTarget {
     };
   }
 }
+class LocalPlayer extends Player {
+  constructor(...args) {
+    super(...args);
+  }
+  setPose(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+    this.pose.set(position, quaternion, scale);
+  }
+  setMetadata(metadata) {
+    for (const key in metadata) {
+      this.metadata[key] = metadata[key];
+    }
+  }
+}
 class XRRTC extends EventTarget {
   constructor(u) {
     super();
     
     this.state = 'closed';
     this.ws = null;
+    this.localUser = new LocalPlayer(0, this);
     this.users = new Map();
     this.mediaStream = null;
     
@@ -106,14 +135,14 @@ class XRRTC extends EventTarget {
               
               for (const userId of users) {
                 if (userId !== id) {
-                  const player = new Player(userId);
+                  const player = new Player(userId, this);
                   this.users.set(userId, player);
                   this.dispatchEvent(new MessageEvent('join', {
                     data: player,
                   }));
                 }
               }
-              ws.id = id;
+              this.localUser.id = id;
               ws.removeEventListener('message', initialMessage);
               ws.addEventListener('message', mainMessage);
               ws.addEventListener('close', e => {
@@ -261,7 +290,7 @@ class XRRTC extends EventTarget {
         byteLength
       );
       const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-      uint32Array[0] = this.ws.id;
+      uint32Array[0] = this.localUser.id;
       if (encodedChunk.copyTo) { // new api
         encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
       } else { // old api
@@ -269,7 +298,7 @@ class XRRTC extends EventTarget {
       }
       this.ws.send(JSON.stringify({
         method: 'audio',
-        id: this.ws.id,
+        id: this.localUser.id,
         args: {
           type,
           timestamp,
