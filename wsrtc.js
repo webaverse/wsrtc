@@ -175,7 +175,7 @@ class LocalPlayer extends Player {
     }
   }
 }
-class XRRTC extends EventTarget {
+class WSRTC extends EventTarget {
   constructor(u) {
     super();
     
@@ -475,12 +475,12 @@ class XRRTC extends EventTarget {
     }
   }
 }
-XRRTC.waitForReady = async () => {
+WSRTC.waitForReady = async () => {
   await _ensureAudioContextInit();
 };
-XRRTC.getAudioContext = () => {
+WSRTC.getAudioContext = () => {
   _ensureAudioContextInit();
   return audioCtx;
 };
 
-export default XRRTC;
+export default WSRTC;

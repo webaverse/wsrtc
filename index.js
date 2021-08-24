@@ -3,7 +3,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const express = require('express');
-const xrrtcServer = require('./xrrtc-server.js');
+const xrrtcServer = require('./wsrtc-server.js');
 
 function getExt(fileName) {
   const match = fileName

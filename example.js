@@ -1,4 +1,4 @@
-import XRRTC from './xrrtc.js';
+import WSRTC from './wsrtc.js';
 
 const container = document.getElementById('container');
 const form = document.getElementById('form');
@@ -44,11 +44,11 @@ form.addEventListener('submit', e => {
     player.pose.addEventListener('update', _updatePlayerDomPosition);
     player.volume.addEventListener('update', _updatePlayerDomPosition);
   };
-  const _startXrrtc = async () => {
-    await XRRTC.waitForReady();
-    const xrrtc = new XRRTC(u);
-    xrrtc.addEventListener('open', e => {
-      xrrtc.localUser.setPose(
+  const _startWsrtc = async () => {
+    await WSRTC.waitForReady();
+    const wsrtc = new WSRTC(u);
+    wsrtc.addEventListener('open', e => {
+      wsrtc.localUser.setPose(
         Float32Array.from([1, 2, 0]),
         Float32Array.from([1, 0, 0, 0]),
         Float32Array.from([3, 3, 3]),
@@ -63,37 +63,37 @@ form.addEventListener('submit', e => {
         return result;
       }
       const name = makeid(5);
-      xrrtc.localUser.setMetadata({
+      wsrtc.localUser.setMetadata({
         name,
       });
       
-      xrrtc.enableMic();
+      wsrtc.enableMic();
       
       const mousemove = e => {
         const x = e.clientX / window.innerWidth;
         const y = e.clientY / window.innerHeight;
-        xrrtc.localUser.setPose(
+        wsrtc.localUser.setPose(
           Float32Array.from([
             x,
             y,
-            xrrtc.localUser.pose.position[2],
+            wsrtc.localUser.pose.position[2],
           ]),
         );
       };
       const mousedown = e => {
-        xrrtc.localUser.setPose(
+        wsrtc.localUser.setPose(
           Float32Array.from([
-            xrrtc.localUser.pose.position[0],
-            xrrtc.localUser.pose.position[1],
+            wsrtc.localUser.pose.position[0],
+            wsrtc.localUser.pose.position[1],
             1,
           ]),
         );
       };
       const mouseup = e => {
-        xrrtc.localUser.setPose(
+        wsrtc.localUser.setPose(
           Float32Array.from([
-            xrrtc.localUser.pose.position[0],
-            xrrtc.localUser.pose.position[1],
+            wsrtc.localUser.pose.position[0],
+            wsrtc.localUser.pose.position[1],
             0,
           ]),
         );
@@ -101,15 +101,15 @@ form.addEventListener('submit', e => {
       document.addEventListener('mousemove', mousemove);
       document.addEventListener('mousedown', mousedown);
       document.addEventListener('mouseup', mouseup);
-      xrrtc.addEventListener('close', e => {
+      wsrtc.addEventListener('close', e => {
         document.removeEventListener('mousemove', mousemove);
         document.removeEventListener('mousedown', mousedown);
         document.removeEventListener('mouseup', mouseup);
       });
     });
-    xrrtc.addEventListener('join', e => {
+    wsrtc.addEventListener('join', e => {
       const player = e.data;
-      player.audioNode.connect(XRRTC.getAudioContext().destination);
+      player.audioNode.connect(WSRTC.getAudioContext().destination);
       player.pose.addEventListener('update', e => {
         // console.log('pose update', player.id, player.pose.position.join(','));
       });
@@ -126,7 +126,7 @@ form.addEventListener('submit', e => {
       _createPlayerDom(player);
     });
   };
-  _startXrrtc();
+  _startWsrtc();
 }, {
   once: true,
 });
