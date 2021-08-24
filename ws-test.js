@@ -498,4 +498,6 @@ window.addEventListener('click', async e => {
       console.log('leave', player);
     });
   });
+}, {
+  once: true,
 });
