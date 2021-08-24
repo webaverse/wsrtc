@@ -11,8 +11,10 @@ const _ensureAudioContextInit = async () => {
   }
 };
 
-class Pose {
+class Pose extends EventTarget {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+    super();
+    
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
@@ -21,6 +23,55 @@ class Pose {
     this.position.set(position);
     this.quaternion.set(quaternion);
     this.scale.set(scale);
+    
+    if (this.parent.state === 'open') {
+      this.parent.pushUserPose(position, quaternion, scale);
+    }
+  }
+  readUpdate(poseBuffer) {
+    const position = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset, 3);
+    this.position.set(position);
+    const quaternion = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset + 3*Float32Array.BYTES_PER_ELEMENT, 4);
+    this.quaternion.set(quaternion);
+    const scale = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset + (3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+    this.scale.set(scale);
+    
+    this.dispatchEvent(new MessageEvent('update'));
+  }
+}
+class Metadata extends EventTarget {
+  constructor() {
+    super();
+    this.data = {};
+  }
+  get(k) {
+    return this.data[k];
+  }
+  set(o) {
+    for (const key in o) {
+      this.data[key] = o[key];
+    }
+
+    if (this.parent.state === 'open') {
+      this.parent.pushUserMetadata(o);
+    }
+  }
+  readUpdate(o) {
+    for (const key in o) {
+      this.data[key] = o[key];
+    }
+    
+    const keys = Object.keys(o);
+    if (keys.length > 0) {
+      this.dispatchEvent(new MessageEvent('update', {
+        data: {
+          keys,
+        },
+      }));
+    }
+  }
+  toJSON() {
+    return this.data;
   }
 }
 class Player extends EventTarget {
@@ -30,7 +81,7 @@ class Player extends EventTarget {
     this.id = id;
     this.parent = parent;
     this.pose = new Pose();
-    this.metadata = {};
+    this.metadata = new Metadata();
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
@@ -142,7 +193,6 @@ class XRRTC extends EventTarget {
                   }));
                 }
               }
-              this.localUser.id = id;
               ws.removeEventListener('message', initialMessage);
               ws.addEventListener('message', mainMessage);
               ws.addEventListener('close', e => {
@@ -150,6 +200,11 @@ class XRRTC extends EventTarget {
                 this.ws = null;
                 this.dispatchEvent(new MessageEvent('close'));
               });
+              
+              // latch local user id
+              this.localUser.id = id;
+              // send initial pose/metadata
+              this.pushUserState();
               
               break;
             }
@@ -162,14 +217,25 @@ class XRRTC extends EventTarget {
           const j = JSON.parse(e.data);
           const {method} = j;
           switch (method) {
+            case 'pose':
             case 'audio': {
               const {id} = j;
-              // console.log('got audio prep message', j);
               const player = this.users.get(id);
               if (player) {
                 player.lastMessage = j;
               } else {
-                console.warn('audio message for unknown player ' + id);
+                console.warn('muultipart message for unknown player ' + id);
+              }
+              break;
+            }
+            case 'metadata': {
+              const {id} = j;
+              const player = this.users.get(id);
+              if (player) {
+                const {args} = j;
+                player.metadata.readUpdate(args);
+              } else {
+                console.warn('metadata message for unknown player ' + id);
               }
               break;
             }
@@ -181,6 +247,8 @@ class XRRTC extends EventTarget {
               this.dispatchEvent(new MessageEvent('join', {
                 data: player,
               }));
+              // update the new user about us
+              this.pushUserState();
               break;
             }
             case 'leave': {
@@ -211,12 +279,18 @@ class XRRTC extends EventTarget {
           const player = this.users.get(id);
           if (player) {
             const j = player.lastMessage;
-            if (j && j.method === 'audio') {
+            if (j) {
               player.lastMessage = null;
               const data = new Uint8Array(e.data, Uint32Array.BYTES_PER_ELEMENT);
               
               const {method} = j;
               switch (method) {
+                case 'pose': {
+                  const poseBuffer = new Float32Array(data.buffer, data.byteOffset);
+                  player.pose.readUpdate(poseBuffer);
+                  // console.log('got pose buffer', poseBuffer);
+                  break;
+                }
                 case 'audio': {
                   const {args: {type, timestamp, duration}} = j;
                   const encodedAudioChunk = new EncodedAudioChunk({
@@ -248,6 +322,33 @@ class XRRTC extends EventTarget {
         data: err,
       }));
     });
+  }
+  pushUserState() {
+    this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale);
+    this.pushUserMetadata(this.localUser.metadata.toJSON());
+  }
+  pushUserPose(p, q, s) {
+    const data = new Float32Array(1 + 3 + 4 + 3);
+    const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
+    uint32Array[0] = this.localUser.id;
+    const position = new Float32Array(data.buffer, data.byteOffset + 1*Float32Array.BYTES_PER_ELEMENT, 3);
+    position.set(p);
+    const quaternion = new Float32Array(data.buffer, data.byteOffset + (1+3)*Float32Array.BYTES_PER_ELEMENT, 4);
+    quaternion.set(q);
+    const scale = new Float32Array(data.buffer, data.byteOffset + (1+3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+    scale.set(s);
+    this.ws.send(JSON.stringify({
+      method: 'pose',
+      id: this.localUser.id,
+    }));
+    this.ws.send(data);
+  }
+  pushUserMetadata(o) {
+    this.ws.send(JSON.stringify({
+      method: 'metadata',
+      id: this.localUser.id,
+      args: o,
+    }));
   }
   close() {
     if (this.state === 'open') {
@@ -291,6 +392,9 @@ class XRRTC extends EventTarget {
       );
       const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
       uint32Array[0] = this.localUser.id;
+      if (!this.localUser.id) {
+        debugger;
+      }
       if (encodedChunk.copyTo) { // new api
         encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
       } else { // old api
@@ -356,6 +460,12 @@ window.addEventListener('click', async e => {
     const player = e.data;
     console.log('join', player);
     player.audioNode.connect(audioCtx.destination);
+    player.pose.addEventListener('update', e => {
+      console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
+    });
+    player.metadata.addEventListener('update', e => {
+      console.log('metadata update', player.id, player.metadata.toJSON());
+    });
     player.addEventListener('volume', e => {
       // console.log('volume', e.data);
     });
