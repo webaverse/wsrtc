@@ -1,18 +1,30 @@
 const ws = require('ws');
 
+class Room {
+  constructor(url) {
+    this.url = url;
+    this.users = [];
+  }
+}
+
 const wss = new ws.WebSocketServer({
   noServer: true,
 });
-const users = [];
+const rooms = new Map();
 wss.on('connection', (ws, req) => {
+  let room = rooms.get(req.url);
+  if (!room) {
+    room = new Room(req.url);
+    rooms.set(req.url, room);
+  }
   const id = Math.floor(Math.random() * 0xFFFFFF);
   const localUser = {
     id,
     ws,
   };
-  users.push(localUser);
+  room.users.push(localUser);
   ws.addEventListener('close', () => {
-    for (const user of users) {
+    for (const user of room.users) {
       if (user !== localUser) {
         user.ws.send(JSON.stringify({
           method: 'leave',
@@ -21,16 +33,16 @@ wss.on('connection', (ws, req) => {
       }
     }
     
-    users.splice(users.indexOf(localUser), 1);
+    room.users.splice(room.users.indexOf(localUser), 1);
   });
   ws.send(JSON.stringify({
     method: 'init',
     args: {
       id,
-      users: users.map(u => u.id),
+      users: room.users.map(u => u.id),
     },
   }));
-  for (const user of users) {
+  for (const user of room.users) {
     if (user !== localUser) {
       user.ws.send(JSON.stringify({
         method: 'join',
@@ -42,7 +54,7 @@ wss.on('connection', (ws, req) => {
   // console.log('got ws', req.url);
   ws.addEventListener('message', e => {
     // console.log('got message', e.data);
-    for (const user of users) {
+    for (const user of room.users) {
       if (user !== localUser) {
         user.ws.send(e.data);
       }
