@@ -16,11 +16,13 @@ input.value = qs.u || `wss://${location.host}`;
 form.addEventListener('submit', e => {
   e.preventDefault();
   
+  const u = input.value;
+  history.pushState({}, '', location.protocol + '//' + location.host + '?u=' + encodeURIComponent(u));
   form.style.display = 'none';
 
   const _startXrrtc = async () => {
     await XRRTC.waitForReady();
-    const xrrtc = new XRRTC(input.value);
+    const xrrtc = new XRRTC(u);
     xrrtc.addEventListener('open', e => {
       xrrtc.localUser.setPose(
         Float32Array.from([1, 2, 3]),
