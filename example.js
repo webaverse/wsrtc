@@ -24,6 +24,11 @@ form.addEventListener('submit', e => {
   const _createPlayerDom = player => {
     const playerEl = document.createElement('div');
     playerEl.classList.add('player');
+    
+    const volumeEl = document.createElement('div');
+    volumeEl.classList.add('volume');
+    playerEl.appendChild(volumeEl);
+    
     container.appendChild(playerEl);
     player.addEventListener('leave', e => {
       container.removeChild(playerEl);
@@ -31,9 +36,11 @@ form.addEventListener('submit', e => {
     
     const _updatePlayerDomPosition = () => {
       playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2})`;
+      volumeEl.style.height = `${player.volume.value * 100}%`;
     };
     _updatePlayerDomPosition();
     player.pose.addEventListener('update', _updatePlayerDomPosition);
+    player.volume.addEventListener('update', _updatePlayerDomPosition);
   };
   const _startXrrtc = async () => {
     await XRRTC.waitForReady();
@@ -107,7 +114,7 @@ form.addEventListener('submit', e => {
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
       });
-      player.addEventListener('volume', e => {
+      player.volume.addEventListener('volume', e => {
         // console.log('volume', e.data);
       });
       player.addEventListener('leave', e => {

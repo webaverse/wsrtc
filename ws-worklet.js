@@ -1,4 +1,5 @@
 const numTicks = 1;
+const sampleScale = 2;
 
 class WsWorklet extends AudioWorkletProcessor {
   constructor (...args) {
@@ -6,9 +7,7 @@ class WsWorklet extends AudioWorkletProcessor {
     
     this.buffers = [];
     this.tick = 0;
-    this.sampleSum = 0;
-    this.numSamples = 0;
-    // this.muted = false;
+    this.maxSample = 0;
     
     this.port.onmessage = e => {
       this.buffers.push(e.data);
@@ -31,7 +30,7 @@ class WsWorklet extends AudioWorkletProcessor {
             // console.log('set frame', frames, buffer);
             const v = buffer[frameIndex++];
             frames[i] = v;
-            this.sampleSum += Math.abs(v);
+            this.maxSample = Math.max(Math.abs(v), this.maxSample);
             this.numSamples++;
           } else {
             bufferIndex++;
@@ -62,14 +61,14 @@ class WsWorklet extends AudioWorkletProcessor {
         method: 'volume',
         args: {
           value: this.numSamples > 0 ?
-            this.sampleSum / this.numSamples
+            Math.min(this.maxSample * sampleScale, 1)
           :
             0,
         },
       });
 
       this.tick = 0;
-      this.sampleSum = 0;
+      this.maxSample = 0;
       this.numSamples = 0;
     }
     

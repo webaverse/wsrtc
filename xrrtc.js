@@ -67,6 +67,23 @@ class Metadata extends EventTarget {
     return this.data;
   }
 }
+class Volume extends EventTarget {
+  constructor() {
+    super();
+    
+    this.value = 0;
+  }
+  readUpdate(value) {
+    this.value = value;
+    
+    this.dispatchEvent(new MessageEvent('update', {
+      data: {
+        value,
+      },
+    }));
+  }
+}
+
 class Player extends EventTarget {
   constructor(id, parent) {
     super();
@@ -75,6 +92,7 @@ class Player extends EventTarget {
     this.parent = parent;
     this.pose = new Pose(undefined, undefined, undefined);
     this.metadata = new Metadata();
+    this.volume = new Volume();
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
@@ -110,9 +128,7 @@ class Player extends EventTarget {
       switch (method) {
         case 'volume': {
           const {args: {value}} = e.data;
-          this.dispatchEvent(new MessageEvent('volume', {
-            data: value,
-          }));
+          this.volume.readUpdate(value);
           break;
         }
       }
