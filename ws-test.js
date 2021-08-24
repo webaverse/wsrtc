@@ -12,12 +12,13 @@ const _ensureAudioContextInit = async () => {
 };
 
 class Pose extends EventTarget {
-  constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+  constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1]), parent) {
     super();
     
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
+    this.parent = parent;
   }
   set(position, quaternion, scale) {
     this.position.set(position);
@@ -40,9 +41,11 @@ class Pose extends EventTarget {
   }
 }
 class Metadata extends EventTarget {
-  constructor() {
+  constructor(parent) {
     super();
+    
     this.data = {};
+    this.parent = parent;
   }
   get(k) {
     return this.data[k];
@@ -80,8 +83,8 @@ class Player extends EventTarget {
     
     this.id = id;
     this.parent = parent;
-    this.pose = new Pose();
-    this.metadata = new Metadata();
+    this.pose = new Pose(undefined, undefined, undefined, this);
+    this.metadata = new Metadata(this);
     this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
@@ -144,10 +147,8 @@ class LocalPlayer extends Player {
   setPose(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
     this.pose.set(position, quaternion, scale);
   }
-  setMetadata(metadata) {
-    for (const key in metadata) {
-      this.metadata[key] = metadata[key];
-    }
+  setMetadata(o) {
+    this.metadata.set(o);
   }
 }
 class XRRTC extends EventTarget {
@@ -186,7 +187,7 @@ class XRRTC extends EventTarget {
               
               for (const userId of users) {
                 if (userId !== id) {
-                  const player = new Player(userId, this);
+                  const player = new Player(userId, null);
                   this.users.set(userId, player);
                   this.dispatchEvent(new MessageEvent('join', {
                     data: player,
@@ -325,7 +326,7 @@ class XRRTC extends EventTarget {
   }
   pushUserState() {
     this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale);
-    this.pushUserMetadata(this.localUser.metadata.toJSON());
+    this.pushUserMetadata(this.localUser.metadata.data);
   }
   pushUserPose(p, q, s) {
     const data = new Float32Array(1 + 3 + 4 + 3);
@@ -462,6 +463,18 @@ window.addEventListener('click', async e => {
     player.audioNode.connect(audioCtx.destination);
     player.pose.addEventListener('update', e => {
       console.log('pose update', player.id, player.pose.position, player.pose.quaternion, player.pose.scale);
+    });
+    function makeid(length) {
+      let result = '';
+      const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+      return result;
+    }
+    const name = makeid(5);
+    xrrtc.localUser.setMetadata({
+      name,
     });
     player.metadata.addEventListener('update', e => {
       console.log('metadata update', player.id, player.metadata.toJSON());
