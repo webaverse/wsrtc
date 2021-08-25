@@ -50,72 +50,58 @@ function int16ToFloat32(inputArray) {
   }
 })(); */
 
-  /* // Decoder
+const loadPromise = (async () => {
+  await libopus.waitForReady();
 
-  // create decoder
-  // channels and samplerate should match the encoder options
-  Decoder(channels, samplerate)
-
-  // free decoder memory
-  Decoder.destroy()
-
-  // add packet to the decoder buffer
-  // packet: Uint8Array
-  Decoder.input(packet)
-
-  // output the next decoded samples
-  // return samples (interleaved if multiple channels) as Int16Array (valid until the next output call) or null if there is no output
-  Decoder.output() */
+  const enc = new libopus.Encoder(channelCount, sampleRate, bitrate, frameSize, voiceOptimization);
+  const dec = new libopus.Decoder(channelCount, sampleRate);
+  return {enc, dec};
 })();
 
-/* const muxAndSend = encodedChunk => {
-  // console.log('got chunk', encodedChunk);
-  const {type, timestamp, duration} = encodedChunk;
-  const byteLength = encodedChunk.copyTo ?
-    encodedChunk.byteLength
-  :
-    encodedChunk.data.byteLength;
-  const data = new Uint8Array(
-    Uint32Array.BYTES_PER_ELEMENT +
-    byteLength
-  );
-  const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-  uint32Array[0] = this.localUser.id;
-  if (encodedChunk.copyTo) { // new api
-    encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
-  } else { // old api
-    data.set(new Uint8Array(encodedChunk.data), Uint32Array.BYTES_PER_ELEMENT);
-  }
-  this.ws.send(JSON.stringify({
-    method: 'audio',
-    id: this.localUser.id,
-    args: {
-      type,
-      timestamp,
-      duration,
-    },
-  }));
-  this.ws.send(data);
-};
-function onEncoderError(err) {
-  console.warn('encoder error', err);
-}
-const audioEncoder = new AudioEncoder({
-  output: muxAndSend,
-  error: onEncoderError,
-});
-audioEncoder.configure({
-  codec: 'opus',
-  numberOfChannels: channelCount,
-  sampleRate,
-  bitrate,
-}); */
-
-onmessage = e => {
+onmessage = async e => {
   const {method} = e.data;
   switch (method) {
     case 'encode': {
       const {args: {data}} = e.data;
+      
+      const {enc} = await loadPromise;
+      const samples = floatTo16Bit(data);
+      enc.input(samples);
+      
+      let output;
+      while (output = enc.output()) {
+        output = output.slice();
+        postMessage({
+          method: 'encode',
+          args: {
+            data: output,
+          },
+        }, [output.buffer]);
+      }
+      
+      break;
+    }
+    case 'decode': {
+      const {args: {data}} = e.data;
+      
+      const {dec} = await loadPromise;
+      dec.input(data);
+
+      let output;
+      while (output = dec.output()) {
+        const result2 = int16ToFloat32(output);
+        
+        postMessage({
+          method: 'decode',
+          args: {
+            data: result2,
+          },
+        }, [result2.buffer]);
+      }
+      break;
+    }
+    default: {
+      console.warn('unknown method: ' + method);
       break;
     }
   }
