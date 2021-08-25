@@ -1,7 +1,8 @@
 import libopus from './libopusjs/libopus.wasm.js';
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
-// console.log('got libopus', libopus);
+const frameSize = 20;
+const voiceOptimization = false;
 
 function floatTo16Bit(inputArray){
   const output = new Int16Array(inputArray.length);
@@ -25,8 +26,6 @@ function int16ToFloat32(inputArray) {
   await libopus.waitForReady();
   const {Encoder, Decoder} = libopus;
 
-  const frameSize = 20;
-  const voiceOptimization = false;
   const enc = new libopus.Encoder(channelCount, sampleRate, bitrate, frameSize, voiceOptimization);
   const dec = new libopus.Decoder(channelCount, sampleRate);
 
