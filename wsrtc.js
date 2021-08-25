@@ -350,9 +350,9 @@ class WSRTC extends EventTarget {
               const userId = usersData[i];
               const player = new Player(userId);
               this.users.set(userId, player);
-              /* this.dispatchEvent(new MessageEvent('join', {
+              this.dispatchEvent(new MessageEvent('join', {
                 data: player,
-              })); */
+              }));
             }
             index += usersData.byteLength;
             
