@@ -1,6 +1,7 @@
-import {channelCount, sampleRate, bitrate, roomEntitiesPrefix} from './ws-constants.js';
+import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
+import {encodeMessage, getEncodedAudioChunkBuffer} from './ws-util.js';
 import Y from './y.js';
 
 class Pose extends EventTarget {
@@ -246,16 +247,11 @@ class Room extends EventTarget {
     const _stateUpdate = uint8Array => {
       console.log('room state update', this.state.toJSON());
       
-      const updateBuffer = Y.encodeStateAsUpdate(this.state);
-      const b = new Uint8Array(Uint32Array.BYTES_PER_ELEMENT + updateBuffer.byteLength);
-      new Uint32Array(b.buffer, b.byteOffset, 1)[0] = 0;
-      b.set(updateBuffer, Uint32Array.BYTES_PER_ELEMENT);
-      
-      this.parent.ws.send(JSON.stringify({
-        method: 'stateupdate',
-        id: 0,
-      }));
-      this.parent.ws.send(uint8Array);
+      const data = Y.encodeStateAsUpdate(this.state);
+      this.parent.sendMessage([
+        MESSAGE.ROOMSTATE,
+        data,
+      ]);
     };
     this.state.on('update', _stateUpdate);
   }
@@ -507,30 +503,31 @@ class WSRTC extends EventTarget {
   }
   pushUserPose(p, q, s) {
     if (this.localUser.id) {
-      const data = new Float32Array(1 + 3 + 4 + 3);
-      const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-      uint32Array[0] = this.localUser.id;
-      const position = new Float32Array(data.buffer, data.byteOffset + 1*Float32Array.BYTES_PER_ELEMENT, 3);
+      const data = new Float32Array(3 + 4 + 3);
+      const position = new Float32Array(data.buffer, data.byteOffset, 3);
       position.set(p);
-      const quaternion = new Float32Array(data.buffer, data.byteOffset + (1+3)*Float32Array.BYTES_PER_ELEMENT, 4);
+      const quaternion = new Float32Array(data.buffer, data.byteOffset + 3*Float32Array.BYTES_PER_ELEMENT, 4);
       quaternion.set(q);
-      const scale = new Float32Array(data.buffer, data.byteOffset + (1+3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+      const scale = new Float32Array(data.buffer, data.byteOffset + 3+4*Float32Array.BYTES_PER_ELEMENT, 3);
       scale.set(s);
-      this.ws.send(JSON.stringify({
-        method: 'pose',
-        id: this.localUser.id,
-      }));
-      this.ws.send(data);
+      this.sendMessage([
+        MESSAGE.POSE,
+        this.localUser.id,
+        data,
+      ]);
     }
   }
   pushUserMetadata(o) {
     if (this.localUser.id) {
-      this.ws.send(JSON.stringify({
-        method: 'metadata',
-        id: this.localUser.id,
-        args: o,
-      }));
+      this.sendMessage([
+        MESSAGE.USERSTATE,
+        this.localUser.id,
+        JSON.stringify(o),
+      ]);
     }
+  }
+  sendMessage(parts) {
+    this.ws.send(encodeMessage(parts));
   }
   close() {
     if (this.state === 'open') {
@@ -559,31 +556,16 @@ class WSRTC extends EventTarget {
     const muxAndSend = encodedChunk => {
       // console.log('got chunk', encodedChunk);
       const {type, timestamp, duration} = encodedChunk;
-      const byteLength = encodedChunk.copyTo ?
-        encodedChunk.byteLength
-      :
-        encodedChunk.data.byteLength;
-      const data = new Uint8Array(
-        Uint32Array.BYTES_PER_ELEMENT +
-        byteLength
-      );
-      const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-      uint32Array[0] = this.localUser.id;
-      if (encodedChunk.copyTo) { // new api
-        encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
-      } else { // old api
-        data.set(new Uint8Array(encodedChunk.data), Uint32Array.BYTES_PER_ELEMENT);
-      }
-      this.ws.send(JSON.stringify({
-        method: 'audio',
-        id: this.localUser.id,
-        args: {
-          type,
-          timestamp,
-          duration,
-        },
-      }));
-      this.ws.send(data);
+      
+      const data = getEncodedAudioChunkBuffer(encodedChunk);
+      this.sendMessage([
+        MESSAGE.AUDIO,
+        this.localUser.id,
+        type === 'key' ? 0 : 1,
+        timestamp,
+        duration,
+        data,
+      ]);
     };
     function onEncoderError(err) {
       console.warn('encoder error', err);
