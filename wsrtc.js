@@ -593,7 +593,10 @@ class WSRTC extends EventTarget {
   }
   disableMic() {
     if (this.mediaStream) {
-      this.mediaStream.close();
+      const tracks = this.mediaStream.getTracks();
+      for (const track of tracks) {
+        track.stop();
+      }
       this.mediaStream = null;
     }
     if (this.audioEncoder) {
