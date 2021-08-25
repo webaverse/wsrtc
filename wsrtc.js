@@ -1,4 +1,4 @@
-import {channelCount, sampleRate, bitrate} from './ws-constants.js';
+import {channelCount, sampleRate, bitrate, roomEntitiesPrefix} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import Y from './y.js';
@@ -209,7 +209,6 @@ class Entity {
     });
   }
 }
-const entitiesPrefix = 'entities';
 class Room extends EventTarget {
   constructor(parent) {
     super();
@@ -218,7 +217,7 @@ class Room extends EventTarget {
     this.parent = parent;
 
     let lastEntities = [];
-    const entities = this.state.getArray(entitiesPrefix);
+    const entities = this.state.getArray(roomEntitiesPrefix);
     entities.observe(() => {
       const nextEntities = entities.toJSON();
 
@@ -261,23 +260,23 @@ class Room extends EventTarget {
     this.state.on('update', _stateUpdate);
   }
   getEntities() {
-    const entities = this.state.getArray(entitiesPrefix);
+    const entities = this.state.getArray(roomEntitiesPrefix);
     const entitiesJson = entities.toJSON();
     return entitiesJson.map(id => {
-      const map = this.state.getMap(entitiesPrefix + '.' + id);
+      const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
       return new Entity(map, this);
     });
   }
   getOrCreateEntity(id) {
     let result;
     this.state.transact(() => {
-      const entities = this.state.getArray(entitiesPrefix);
+      const entities = this.state.getArray(roomEntitiesPrefix);
       const entitiesJson = entities.toJSON();
       if (!entitiesJson.includes(id)) {
         entities.push([id]);
       }
 
-      const map = this.state.getMap(entitiesPrefix + '.' + id);
+      const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
       if (map.get('id') === undefined) {
         map.set('id', id);
       }
@@ -287,13 +286,13 @@ class Room extends EventTarget {
   }
   removeEntity(id) {
     this.state.transact(() => {
-      const entities = this.state.getArray(entitiesPrefix);
+      const entities = this.state.getArray(roomEntitiesPrefix);
       const entitiesJson = entities.toJSON();
       const removeIndex = entitiesJson.indexOf(id);
       if (removeIndex !== -1) {
         entities.delete(removeIndex, 1);
 
-        const map = this.state.getMap(entitiesPrefix + '.' + id);
+        const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
         const keys = Array.from(map.keys());
         for (const key of keys) {
           map.delete(key);

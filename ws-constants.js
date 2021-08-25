@@ -3,3 +3,4 @@ export const sampleRate = 48000;
 export const bitrate = 60000;
 export const frameSize = 20;
 export const voiceOptimization = true;
+export const roomEntitiesPrefix = 'entities';
