@@ -1,9 +1,10 @@
+import {getAudioContext} from './ws-audio-context.js';
 import {getAudioDataBuffer} from './ws-util.js';
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
 // WebCodec suport
 
-export const WsEncodedAudioChunk = EncodedAudioChunk;
+/* export const WsEncodedAudioChunk = EncodedAudioChunk;
 
 export function WsMediaStreamAudioReader(mediaStream) {
   const audioTracks = mediaStream.getAudioTracks();
@@ -38,11 +39,11 @@ export function WsAudioDecoder({output, error}) {
     sampleRate,
   });
   return audioDecoder;
-}
+} */
 
 // NO WebCodec suport
 
-/* function makeFakeAudioData(data) {
+function makeFakeAudioData(data) {
   return {
     buffer: {
       getChannelData(n) {
@@ -52,16 +53,31 @@ export function WsAudioDecoder({output, error}) {
   };
 }
 export class WsMediaStreamAudioReader {
-  contructor(mediaStream) {
+  constructor(mediaStream) {
     this.buffers = [];
     this.cbs = [];
     
+    const audioCtx = getAudioContext();
+    
+    const mediaStreamSourceNode = audioCtx.createMediaStreamSource(mediaStream);
+    
+    const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-input-worklet');
+    audioWorkletNode.port.onmessage = e => {
+      this.buffers.push(e.data);
+      _flush();
+    };
+    
+    mediaStreamSourceNode.connect(audioWorkletNode);
+    audioWorkletNode.connect(audioCtx.destination);
+    
     const _flush = () => {
-      while (this.buffers.length > this.cbs.length) {
+      while (this.buffers.length > 0 && this.cbs.length > 0) {
         this.cbs.shift()(this.buffers.shift());
       }
     };
     mediaStream.addEventListener('close', e => {
+      audioWorkletNode.disconnect();
+      
       this.buffers.push(null);
       _flush();
     });
@@ -155,4 +171,4 @@ export class WsAudioDecoder {
   close() {
     this.worker.terminate();
   }
-} */
+}
