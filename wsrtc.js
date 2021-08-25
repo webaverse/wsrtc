@@ -1,5 +1,5 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
-import {WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
+import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 
 let audioCtx = null;
 const _ensureAudioContextInit = async () => {
@@ -131,6 +131,7 @@ class Player extends EventTarget {
     };
     this.addEventListener('leave', () => {
       audioWorkletNode.disconnect();
+      audioDecoder.close();
     });
     
     this.audioNode = audioWorkletNode;
@@ -180,6 +181,7 @@ class WSRTC extends EventTarget {
     this.localUser = new LocalPlayer(0, this);
     this.users = new Map();
     this.mediaStream = null;
+    this.audioEncoder = null;
     
     this.addEventListener('close', () => {
       this.users = new Map();
@@ -316,7 +318,7 @@ class WSRTC extends EventTarget {
                 }
                 case 'audio': {
                   const {args: {type, timestamp, duration}} = j;
-                  const encodedAudioChunk = new EncodedAudioChunk({
+                  const encodedAudioChunk = new WsEncodedAudioChunk({
                     type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
                     timestamp,
                     duration,
@@ -439,6 +441,7 @@ class WSRTC extends EventTarget {
       output: muxAndSend,
       error: onEncoderError,
     });
+    this.audioEncoder = audioEncoder;
     
     async function readAndEncode() {
       const result = await audioReader.read();
@@ -454,6 +457,10 @@ class WSRTC extends EventTarget {
     if (this.mediaStream) {
       this.mediaStream.close();
       this.mediaStream = null;
+    }
+    if (this.audioEncoder) {
+      this.audioEncoder.close();
+      this.audioEncoder = null;
     }
   }
 }
