@@ -313,6 +313,7 @@ class WSRTC extends EventTarget {
     this.addEventListener('close', () => {
       this.users = new Map();
       this.disableMic();
+      console.log('close');
     });
     this.addEventListener('join', e => {
       const player = e.data;
