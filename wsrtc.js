@@ -370,6 +370,25 @@ class WSRTC extends EventTarget {
               roomState: this.room.state.toJSON(),
             });
             
+            // finish setup
+            ws.removeEventListener('message', initialMessage);
+            ws.addEventListener('message', mainMessage);
+            ws.addEventListener('close', e => {
+              this.state = 'closed';
+              this.ws = null;
+              this.dispatchEvent(new MessageEvent('close'));
+            });
+            
+            // emit open event
+            this.state = 'open';
+            this.dispatchEvent(new MessageEvent('open'));
+            
+            // latch local user id
+            this.localUser.id = id;
+            
+            // send initial pose/metadata
+            this.pushUserState();
+            
             break;
           }
         }
