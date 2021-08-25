@@ -22,34 +22,6 @@ function int16ToFloat32(inputArray) {
   return output;
 }
 
-/* (async () => {
-  await libopus.waitForReady();
-  const {Encoder, Decoder} = libopus;
-
-  const enc = new libopus.Encoder(channelCount, sampleRate, bitrate, frameSize, voiceOptimization);
-  const dec = new libopus.Decoder(channelCount, sampleRate);
-
-  for(;;) {
-    var samples = new Float32Array(2048);
-    for(var k = 0; k < samples.length; k++) {
-      samples[k] = Math.random();
-    }
-    const samples2 = floatTo16Bit(samples);
-    enc.input(samples2);
-    const data = enc.output();
-    if (data) {
-      console.log('got data', data);
-      
-      dec.input(data);
-      const result = dec.output();
-      const result2 = int16ToFloat32(result);
-      console.log('got result', result2);
-
-      break;
-    }
-  }
-})(); */
-
 const loadPromise = (async () => {
   await libopus.waitForReady();
 
