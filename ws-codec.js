@@ -2,7 +2,9 @@ import {getAudioContext} from './ws-audio-context.js';
 import {getAudioDataBuffer} from './ws-util.js';
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
-// WebCodec suport
+// note: you can toggle the implementation to use WebCodecs or not
+
+// WebCodecs suport
 
 /* export const WsEncodedAudioChunk = EncodedAudioChunk;
 
