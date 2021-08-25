@@ -3,7 +3,7 @@ import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
 // WebCodec suport
 
-/* export const WsEncodedAudioChunk = EncodedAudioChunk; */
+export const WsEncodedAudioChunk = EncodedAudioChunk;
 
 export function WsMediaStreamAudioReader(mediaStream) {
   const audioTracks = mediaStream.getAudioTracks();
@@ -13,7 +13,7 @@ export function WsMediaStreamAudioReader(mediaStream) {
   return audioReader;
 }
 
-/* export function WsAudioEncoder({output, error}) {
+export function WsAudioEncoder({output, error}) {
   const audioEncoder = new AudioEncoder({
     output,
     error,
@@ -38,7 +38,7 @@ export function WsAudioDecoder({output, error}) {
     sampleRate,
   });
   return audioDecoder;
-} */
+}
 
 // NO WebCodec suport
 
@@ -46,7 +46,7 @@ export function WsAudioDecoder({output, error}) {
   contructor(mediaStream) {
 
   }
-} */
+}
 
 export function WsEncodedAudioChunk(o) {
   return o;
@@ -110,4 +110,4 @@ export class WsAudioDecoder {
   close() {
     this.worker.terminate();
   }
-}
+} */
