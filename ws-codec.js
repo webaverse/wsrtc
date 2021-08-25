@@ -2,7 +2,7 @@ import {getAudioContext} from './ws-audio-context.js';
 import {getAudioDataBuffer} from './ws-util.js';
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
-// note: you can toggle the implementation to use WebCodecs or not
+// note: you can toggle the implementation to use WebCodecs or not by commenting/uncommenting
 
 // WebCodecs suport
 
