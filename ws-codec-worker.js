@@ -22,7 +22,7 @@ function int16ToFloat32(inputArray) {
   return output;
 }
 
-(async () => {
+/* (async () => {
   await libopus.waitForReady();
   const {Encoder, Decoder} = libopus;
 
@@ -48,6 +48,7 @@ function int16ToFloat32(inputArray) {
       break;
     }
   }
+})(); */
 
   /* // Decoder
 
