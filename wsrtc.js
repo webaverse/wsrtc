@@ -1,5 +1,5 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
-import {getAudioDataBuffer} from './ws-util.js';
+import {WsMediaStreamAudioReader} from './ws-codec.js';
 
 let audioCtx = null;
 const _ensureAudioContextInit = async () => {
@@ -405,13 +405,8 @@ class WSRTC extends EventTarget {
         sampleRate,
       },
     });
-    
-    const audioTracks = this.mediaStream.getAudioTracks();
-    const audioTrack = audioTracks[0];
-    // const audioTrackSettings = audioTrack.getSettings();
-    const audio = (new MediaStreamTrackProcessor(audioTrack)).readable;
-    const audioReader = audio.getReader();
-    // console.log('got media', audioTrack, audioTrack.getSettings(), audio);
+
+    const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
     const muxAndSend = encodedChunk => {
       // console.log('got chunk', encodedChunk);
