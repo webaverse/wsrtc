@@ -348,9 +348,6 @@ class WSRTC extends EventTarget {
             const usersData = new Uint32Array(e.data, index, usersDataByteLength/Uint32Array.BYTES_PER_ELEMENT);
             for (let i = 0; i < usersData.length; i++) {
               const userId = usersData[i];
-              if (!userId) {
-                debugger;
-              }
               const player = new Player(userId);
               this.users.set(userId, player);
               this.dispatchEvent(new MessageEvent('join', {
@@ -388,9 +385,6 @@ class WSRTC extends EventTarget {
           case MESSAGE.JOIN: {
             // register the user locally
             const id = uint32Array[1];
-            if (!id) {
-              debugger;
-            }
             const player = new Player(id);
             this.users.set(id, player);
             player.dispatchEvent(new MessageEvent('join'));

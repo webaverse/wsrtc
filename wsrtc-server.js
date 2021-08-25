@@ -66,7 +66,7 @@ wss.on('connection', (ws, req) => {
     for (let i = 0; i < room.users.length; i++) {
       usersData[i] = room.users[i].id;
     }
-    console.log('got user data', usersData);
+    // console.log('got user data', usersData);
     const roomStateData = Y.encodeStateAsUpdate(room.state);
     sendMessage(ws, [
       MESSAGE.INIT,
