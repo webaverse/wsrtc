@@ -1,19 +1,6 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
-
-let audioCtx = null;
-const _ensureAudioContextInit = async () => {
-  if (!audioCtx) {
-    audioCtx = new AudioContext({
-      latencyHint: 'interactive',
-      sampleRate,
-    });
-    await Promise.all([
-      audioCtx.audioWorklet.addModule('ws-input-worklet.js'),
-      audioCtx.audioWorklet.addModule('ws-output-worklet.js'),
-    ]);
-  }
-};
+import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 
 class Pose extends EventTarget {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
@@ -121,7 +108,7 @@ class Player extends EventTarget {
     });
     this.audioDecoder = audioDecoder;
     
-    const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-output-worklet');
+    const audioWorkletNode = new AudioWorkletNode(getAudioContext(), 'ws-output-worklet');
     audioWorkletNode.port.onmessage = e => {
       const {method} = e.data;
       switch (method) {
@@ -468,11 +455,8 @@ class WSRTC extends EventTarget {
   }
 }
 WSRTC.waitForReady = async () => {
-  await _ensureAudioContextInit();
+  await ensureAudioContext();
 };
-WSRTC.getAudioContext = () => {
-  _ensureAudioContextInit();
-  return audioCtx;
-};
+WSRTC.getAudioContext = getAudioContext;
 
 export default WSRTC;
