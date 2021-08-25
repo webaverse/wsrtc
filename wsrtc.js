@@ -478,7 +478,8 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.ROOMSTATE: {
-            const data = new Uint8Array(e.data, Uint32Array.BYTES_PER_ELEMENT);
+            const byteLength = uint32Array[1];
+            const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
             Y.applyUpdate(this.room.state, data);
             break;
           }
