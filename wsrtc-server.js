@@ -1,5 +1,7 @@
 const ws = require('ws');
 const Y = require('yjs');
+const {encodeMessage} = require('./ws-util-server.js');
+const {MESSAGE} = require('./ws-constants-server.js');
 
 const jsonParse = s => {
   try {
@@ -8,19 +10,21 @@ const jsonParse = s => {
     return null;
   }
 };
+const sendMessage = (ws, parts) => {
+  ws.send(encodeMessage(parts));
+};
 
 class User {
   constructor(id, ws) {
     this.id = id;
     this.ws = ws;
-    this.lastMessage = null;
   }
-  toJSON() {
+  /* toJSON() {
     const {id} = this;
     return {
       id,
     };
-  }
+  } */
 }
 class Room {
   constructor(url) {
@@ -46,10 +50,10 @@ wss.on('connection', (ws, req) => {
   ws.addEventListener('close', () => {
     for (const user of room.users) {
       if (user !== localUser) {
-        user.ws.send(JSON.stringify({
-          method: 'leave',
+        sendMessage(user.ws, [
+          MESSAGE.LEAVE,
           id,
-        }));
+        ]);
       }
     }
     
@@ -57,35 +61,28 @@ wss.on('connection', (ws, req) => {
   });
   
   // send init
-  ws.send(JSON.stringify({
-    method: 'init',
-    args: {
-      id,
-      users: room.users,
-    },
-  }));
-  
-  // send initial state
   {
-    const updateBuffer = Y.encodeStateAsUpdate(room.state);
-    const b = Buffer.alloc(Uint32Array.BYTES_PER_ELEMENT + updateBuffer.byteLength);
-    new Uint32Array(b.buffer, b.byteOffset, 1)[0] = 0;
-    b.set(updateBuffer, Uint32Array.BYTES_PER_ELEMENT);
-    
-    ws.send(JSON.stringify({
-      method: 'stateupdate',
-      id: 0,
-    }));
-    ws.send(b);
+    const usersData = new Uint32Array(room.users.length);
+    for (let i = 0; i < room.users.length; i++) {
+      usersData[i] = room.users[i].id;
+    }
+    console.log('got user data', usersData);
+    const roomStateData = Y.encodeStateAsUpdate(room.state);
+    sendMessage(ws, [
+      MESSAGE.INIT,
+      id,
+      usersData,
+      roomStateData,
+    ]);
   }
 
   // notify users about the join
   for (const user of room.users) {
     if (user !== localUser) {
-      user.ws.send(JSON.stringify({
-        method: 'join',
+      sendMessage(user.ws, [
+        MESSAGE.JOIN,
         id,
-      }));
+      ]);
     }
   }
   
@@ -96,23 +93,13 @@ wss.on('connection', (ws, req) => {
       }
     }
     
-    if (typeof e.data === 'string') {
-      const j = jsonParse(e.data);
-      if (j) {
-        const {method} = j;
-        switch (method) {
-          case 'stateupdate': {
-            localUser.lastMessage = j;
-            break;
-          }
-        }
-      } else {
-        localUser.lastMessage = null;
-      }
-    } else {
-      if (localUser.lastMessage && localUser.lastMessage.method === 'stateupdate') {
-        Y.applyUpdate(room.state, e.data);
-        localUser.lastMessage = null;
+    const dataView = new DataView(e.data.buffer);
+    const method = dataView.getUint32();
+    switch (method) {
+      case MESSAGE.ROOMSTATE: {
+        const data = new Uint8Array(e.data.buffer, e.data.byteOffset + Uint32Array.BYTES_PER_ELEMENT);
+        Y.applyUpdate(room.state, data);
+        break;
       }
     }
   });

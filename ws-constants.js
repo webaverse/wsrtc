@@ -7,6 +7,7 @@ export const roomEntitiesPrefix = 'entities';
 export const MESSAGE = (() => {
   let i = 1;
   return {
+    INIT: i++,
     JOIN: i++,
     LEAVE: i++,
     POSE: i++,
