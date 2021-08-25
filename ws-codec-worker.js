@@ -1,8 +1,5 @@
 import libopus from './libopusjs/libopus.wasm.js';
-import {channelCount, sampleRate, bitrate} from './ws-constants.js';
-
-const frameSize = 20;
-const voiceOptimization = true;
+import {channelCount, sampleRate, bitrate, frameSize, voiceOptimization} from './ws-constants.js';
 
 function floatTo16Bit(inputArray){
   const output = new Int16Array(inputArray.length);
