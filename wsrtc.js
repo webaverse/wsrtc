@@ -1,6 +1,7 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
+import Y from './y.js';
 
 class Pose extends EventTarget {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
@@ -162,6 +163,145 @@ class LocalPlayer extends Player {
     }
   }
 }
+class Entity {
+  constructor(map, parent) {
+    this.map = map;
+    this.parent = parent;
+    
+    const _observe = (e, tx) => {
+      const keysChanged = Array.from(e.keysChanged.values());
+      if (keysChanged.includes('id') && this.map.get('id') === undefined) {
+        this.map.unobserve(_observe);
+      }
+    };
+    this.map.observe(_observe);
+  }
+  get(k) {
+    return this.map.get(k);
+  }
+  toJSON() {
+    return this.map.toJSON();
+  }
+  set(k, v) {
+    if (k === 'id') {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      this.map.set(k, v);
+    });
+  }
+  setJSON(o) {
+    if ('id' in o) {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      for (const k in o) {
+        this.map.set(k, o[k]);
+      }
+    });
+  }
+  delete(k) {
+    if (k === 'id') {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      this.map.delete(k);
+    });
+  }
+}
+const entitiesPrefix = 'entities';
+class Room extends EventTarget {
+  constructor(parent) {
+    super();
+
+    this.state = new Y.Doc();
+    this.parent = parent;
+
+    let lastEntities = [];
+    const entities = this.state.getArray(entitiesPrefix);
+    entities.observe(() => {
+      const nextEntities = entities.toJSON();
+
+      for (const id of nextEntities) {
+        if (!lastEntities.includes(id)) {
+          this.dispatchEvent(new MessageEvent('add', {
+            data: {
+              id,
+            },
+          }));
+        }
+      }
+      for (const id of lastEntities) {
+        if (!nextEntities.includes(id)) {
+          this.dispatchEvent(new MessageEvent('remove', {
+            data: {
+              id,
+            },
+          }));
+        }
+      }
+
+      lastEntities = nextEntities;
+    });
+
+    const _stateUpdate = uint8Array => {
+      console.log('room state update', this.state.toJSON());
+      
+      const updateBuffer = Y.encodeStateAsUpdate(this.state);
+      const b = new Uint8Array(Uint32Array.BYTES_PER_ELEMENT + updateBuffer.byteLength);
+      new Uint32Array(b.buffer, b.byteOffset, 1)[0] = 0;
+      b.set(updateBuffer, Uint32Array.BYTES_PER_ELEMENT);
+      
+      this.parent.ws.send(JSON.stringify({
+        method: 'stateupdate',
+        id: 0,
+      }));
+      this.parent.ws.send(uint8Array);
+    };
+    this.state.on('update', _stateUpdate);
+  }
+  getEntities() {
+    const entities = this.state.getArray(entitiesPrefix);
+    const entitiesJson = entities.toJSON();
+    return entitiesJson.map(id => {
+      const map = this.state.getMap(entitiesPrefix + '.' + id);
+      return new Entity(map, this);
+    });
+  }
+  getOrCreateEntity(id) {
+    let result;
+    this.state.transact(() => {
+      const entities = this.state.getArray(entitiesPrefix);
+      const entitiesJson = entities.toJSON();
+      if (!entitiesJson.includes(id)) {
+        entities.push([id]);
+      }
+
+      const map = this.state.getMap(entitiesPrefix + '.' + id);
+      if (map.get('id') === undefined) {
+        map.set('id', id);
+      }
+      result = new Entity(map, this);
+    });
+    return result;
+  }
+  removeEntity(id) {
+    this.state.transact(() => {
+      const entities = this.state.getArray(entitiesPrefix);
+      const entitiesJson = entities.toJSON();
+      const removeIndex = entitiesJson.indexOf(id);
+      if (removeIndex !== -1) {
+        entities.delete(removeIndex, 1);
+
+        const map = this.state.getMap(entitiesPrefix + '.' + id);
+        const keys = Array.from(map.keys());
+        for (const key of keys) {
+          map.delete(key);
+        }
+      }
+    });
+  }
+}
 class WSRTC extends EventTarget {
   constructor(u) {
     super();
@@ -170,6 +310,7 @@ class WSRTC extends EventTarget {
     this.ws = null;
     this.localUser = new LocalPlayer(0, this);
     this.users = new Map();
+    this.room = new Room(this);
     this.mediaStream = null;
     this.audioEncoder = null;
     
@@ -227,7 +368,7 @@ class WSRTC extends EventTarget {
         }
       };
       const mainMessage = e => {
-        // console.log('got message', e);
+        // console.log('got message', e.data);
         if (typeof e.data === 'string') {
           const j = JSON.parse(e.data);
           const {method} = j;
@@ -280,53 +421,74 @@ class WSRTC extends EventTarget {
               }
               break;
             }
+            case 'stateupdate': {
+              this.localUser.lastMessage = j;
+              break;
+            }
             default: {
               console.warn('unknown message method: ' + method);
               break;
             }
           }
         } else {
-          // console.log('got e', e.data);
+          // console.log('got binary data', e.data);
           
           const uint32Array = new Uint32Array(e.data, 0, 1);
           const id = uint32Array[0];
-          // console.log('got audio data', id);
-          const player = this.users.get(id);
-          if (player) {
-            const j = player.lastMessage;
+          if (id === 0) {
+            const j = this.localUser.lastMessage;
             if (j) {
-              player.lastMessage = null;
+              this.localUser.lastMessage = null;
               const data = new Uint8Array(e.data, Uint32Array.BYTES_PER_ELEMENT);
               
               const {method} = j;
               switch (method) {
-                case 'pose': {
-                  const poseBuffer = new Float32Array(data.buffer, data.byteOffset);
-                  player.pose.readUpdate(poseBuffer);
-                  // console.log('got pose buffer', poseBuffer);
-                  break;
-                }
-                case 'audio': {
-                  const {args: {type, timestamp, duration}} = j;
-                  const encodedAudioChunk = new WsEncodedAudioChunk({
-                    type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
-                    timestamp,
-                    duration,
-                    data,
-                  });
-                  player.audioDecoder.decode(encodedAudioChunk);
-                  break;
-                }
-                default: {
-                  console.warn('unknown last message method: ' + method);
+                case 'stateupdate': {
+                  Y.applyUpdate(this.room.state, data);
                   break;
                 }
               }
             } else {
-              console.warn('throwing away out-of-order binary data for user ' + id);
+              console.warn('throwing away out-of-order binary data for local user');
             }
           } else {
-            console.warn('received binary data for unknown user ' + id);
+            const player = this.users.get(id);
+            if (player) {
+              const j = player.lastMessage;
+              if (j) {
+                player.lastMessage = null;
+                const data = new Uint8Array(e.data, Uint32Array.BYTES_PER_ELEMENT);
+                
+                const {method} = j;
+                switch (method) {
+                  case 'pose': {
+                    const poseBuffer = new Float32Array(data.buffer, data.byteOffset);
+                    player.pose.readUpdate(poseBuffer);
+                    // console.log('got pose buffer', poseBuffer);
+                    break;
+                  }
+                  case 'audio': {
+                    const {args: {type, timestamp, duration}} = j;
+                    const encodedAudioChunk = new WsEncodedAudioChunk({
+                      type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
+                      timestamp,
+                      duration,
+                      data,
+                    });
+                    player.audioDecoder.decode(encodedAudioChunk);
+                    break;
+                  }
+                  default: {
+                    console.warn('unknown last message method: ' + method);
+                    break;
+                  }
+                }
+              } else {
+                console.warn('throwing away out-of-order binary data for user ' + id);
+              }
+            } else {
+              console.warn('received binary data for unknown user ' + id);
+            }
           }
         }
       };
