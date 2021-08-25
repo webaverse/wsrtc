@@ -433,7 +433,7 @@ class WSRTC extends EventTarget {
 
             const player = this.users.get(id);
             if (player) {
-              const poseBuffer = new Float32Array(e.data, Uint32Array.BYTES_PER_ELEMENT, 3 + 4 + 3);
+              const poseBuffer = new Float32Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, 3 + 4 + 3);
               player.pose.readUpdate(poseBuffer);
             } else {
               console.warn('message for unknown player ' + id);
