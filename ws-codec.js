@@ -42,9 +42,60 @@ export function WsAudioDecoder({output, error}) {
 
 // NO WebCodec suport
 
-/* export class WsMediaStreamAudioReader {
+/* function makeFakeAudioData(data) {
+  return {
+    buffer: {
+      getChannelData(n) {
+        return data;
+      },
+    },
+  };
+}
+export class WsMediaStreamAudioReader {
   contructor(mediaStream) {
+    this.buffers = [];
+    this.cbs = [];
+    
+    const _flush = () => {
+      while (this.buffers.length > this.cbs.length) {
+        this.cbs.shift()(this.buffers.shift());
+      }
+    };
+    mediaStream.addEventListener('close', e => {
+      this.buffers.push(null);
+      _flush();
+    });
+  }
+  read() {
+    const _makeResult = b => {
+      if (b) {
+        const value = makeFakeAudioData(b);
+        return {
+          value,
+          done: false,
+        };
+      } else {
+        return {
+          value: null,
+          done: true,
+        };
+      }
 
+    };
+    if (this.buffers.length > 0) {
+      const result = _makeResult(this.buffers.shift());
+      return Promise.resolve(result);
+    } else {
+      let accept;
+      const p = new Promise((a, r) => {
+        accept = a;
+      });
+      this.cbs.push(b => {
+        const result = _makeResult(b);
+        accept(result);
+      });
+      return p;
+    }
   }
 }
 
@@ -87,13 +138,7 @@ export class WsAudioDecoder {
     });
     this.worker.onmessage = e => {
       const {args: {data}} = e.data;
-      const audioData = {
-        buffer: {
-          getChannelData(n) {
-            return data;
-          },
-        },
-      };
+      const audioData = makeFakeAudioData(data);
       output(audioData);
     };
     this.worker.onerror = error;

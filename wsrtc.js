@@ -8,7 +8,10 @@ const _ensureAudioContextInit = async () => {
       latencyHint: 'interactive',
       sampleRate,
     });
-    await audioCtx.audioWorklet.addModule('ws-decode-worklet.js');
+    await Promise.all([
+      audioCtx.audioWorklet.addModule('ws-input-worklet.js'),
+      audioCtx.audioWorklet.addModule('ws-output-worklet.js'),
+    ]);
   }
 };
 
@@ -118,7 +121,7 @@ class Player extends EventTarget {
     });
     this.audioDecoder = audioDecoder;
     
-    const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-decode-worklet');
+    const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-output-worklet');
     audioWorkletNode.port.onmessage = e => {
       const {method} = e.data;
       switch (method) {
