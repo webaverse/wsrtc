@@ -3,6 +3,24 @@ import {channelCount, sampleRate, bitrate} from './ws-constants.js';
 
 // console.log('got libopus', libopus);
 
+function floatTo16Bit(inputArray){
+  const output = new Int16Array(inputArray.length);
+  for (let i = 0; i < inputArray.length; i++){
+    const s = Math.max(-1, Math.min(1, inputArray[i]));
+    output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+  }
+  return output;
+}
+function int16ToFloat32(inputArray) {
+  const output = new Float32Array(inputArray.length);
+  for (let i = 0; i < inputArray.length; i++) {
+    const int = inputArray[i];
+    const float = (int >= 0x8000) ? -(0x10000 - int) / 0x8000 : int / 0x7FFF;
+    output[i] = float;
+  }
+  return output;
+}
+
 (async () => {
   await libopus.waitForReady();
   const {Encoder, Decoder} = libopus;
@@ -13,18 +31,20 @@ import {channelCount, sampleRate, bitrate} from './ws-constants.js';
   const dec = new libopus.Decoder(channelCount, sampleRate);
 
   for(;;) {
-    var samples = new Int16Array(2048);
+    var samples = new Float32Array(2048);
     for(var k = 0; k < samples.length; k++) {
-      samples[k] = Math.random()*30000;
+      samples[k] = Math.random();
     }
-    enc.input(samples);
+    const samples2 = floatTo16Bit(samples);
+    enc.input(samples2);
     const data = enc.output();
     if (data) {
       console.log('got data', data);
       
       dec.input(data);
       const result = dec.output();
-      console.log('got result', result);
+      const result2 = int16ToFloat32(result);
+      console.log('got result', result2);
 
       break;
     }
