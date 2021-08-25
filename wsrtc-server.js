@@ -93,11 +93,12 @@ wss.on('connection', (ws, req) => {
       }
     }
     
-    const dataView = new DataView(e.data.buffer);
-    const method = dataView.getUint32();
+    const dataView = new DataView(e.data.buffer, e.data.byteOffset);
+    const method = dataView.getUint32(0, true);
     switch (method) {
       case MESSAGE.ROOMSTATE: {
-        const data = new Uint8Array(e.data.buffer, e.data.byteOffset + Uint32Array.BYTES_PER_ELEMENT);
+        const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
         Y.applyUpdate(room.state, data);
         break;
       }
