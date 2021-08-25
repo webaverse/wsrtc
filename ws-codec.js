@@ -43,7 +43,7 @@ export function WsAudioDecoder({output, error}) {
   return audioDecoder;
 } */
 
-// NO WebCodec suport
+// NO WebCodecs suport
 
 function makeFakeAudioData(data) {
   return {
