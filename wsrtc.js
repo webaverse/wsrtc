@@ -1,5 +1,5 @@
 import {channelCount, sampleRate, bitrate} from './ws-constants.js';
-import {WsMediaStreamAudioReader} from './ws-codec.js';
+import {WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 
 let audioCtx = null;
 const _ensureAudioContextInit = async () => {
@@ -112,14 +112,9 @@ class Player extends EventTarget {
     function onDecoderError(err) {
       console.warn('decoder error', err);
     }
-    const audioDecoder = new AudioDecoder({
+    const audioDecoder = new WsAudioDecoder({
       output: demuxAndPlay,
       error: onDecoderError,
-    });
-    audioDecoder.configure({
-      codec: 'opus',
-      numberOfChannels: channelCount,
-      sampleRate,
     });
     this.audioDecoder = audioDecoder;
     
@@ -421,9 +416,6 @@ class WSRTC extends EventTarget {
       );
       const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
       uint32Array[0] = this.localUser.id;
-      if (!this.localUser.id) {
-        debugger;
-      }
       if (encodedChunk.copyTo) { // new api
         encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
       } else { // old api
@@ -440,20 +432,14 @@ class WSRTC extends EventTarget {
       }));
       this.ws.send(data);
     };
-    const audioEncoder = new AudioEncoder({
-      output: muxAndSend,
-      error: onEncoderError,
-    });
-    audioEncoder.configure({
-      codec: 'opus',
-      numberOfChannels: channelCount,
-      sampleRate,
-      bitrate,
-    });
-    
     function onEncoderError(err) {
       console.warn('encoder error', err);
     }
+    const audioEncoder = new WsAudioEncoder({
+      output: muxAndSend,
+      error: onEncoderError,
+    });
+    
     async function readAndEncode() {
       const result = await audioReader.read();
       if (!result.done) {
