@@ -1,5 +1,18 @@
 const ws = require('ws');
 
+class User {
+  constructor(id, ws) {
+    this.id = id;
+    this.ws = ws;
+    this.lastMessage = null;
+  }
+  toJSON() {
+    const {id} = this;
+    return {
+      id,
+    };
+  }
+}
 class Room {
   constructor(url) {
     this.url = url;
@@ -18,10 +31,7 @@ wss.on('connection', (ws, req) => {
     rooms.set(req.url, room);
   }
   const id = Math.floor(Math.random() * 0xFFFFFF);
-  const localUser = {
-    id,
-    ws,
-  };
+  const localUser = new User(id, ws);
   room.users.push(localUser);
   ws.addEventListener('close', () => {
     for (const user of room.users) {
@@ -39,7 +49,7 @@ wss.on('connection', (ws, req) => {
     method: 'init',
     args: {
       id,
-      users: room.users.map(u => u.id),
+      users: room.users,
     },
   }));
   for (const user of room.users) {
