@@ -70,7 +70,6 @@ export class WsMediaStreamAudioReader {
     };
     
     mediaStreamSourceNode.connect(audioWorkletNode);
-    audioWorkletNode.connect(audioCtx.destination);
     
     const _flush = () => {
       while (this.buffers.length > 0 && this.cbs.length > 0) {
@@ -78,8 +77,6 @@ export class WsMediaStreamAudioReader {
       }
     };
     mediaStream.addEventListener('close', e => {
-      audioWorkletNode.disconnect();
-      
       this.buffers.push(null);
       _flush();
     });
