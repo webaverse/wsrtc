@@ -1,6 +1,10 @@
-import {channelCount, sampleRate, bitrate} from './ws-constants.js';
+import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
+import {encodeMessage, getEncodedAudioChunkBuffer} from './ws-util.js';
+import Y from './y.js';
+
+const textDecoder = new TextDecoder();
 
 class Pose extends EventTarget {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
@@ -76,15 +80,13 @@ class Volume extends EventTarget {
 }
 
 class Player extends EventTarget {
-  constructor(id, parent) {
+  constructor(id) {
     super();
     
     this.id = id;
-    this.parent = parent;
     this.pose = new Pose(undefined, undefined, undefined);
     this.metadata = new Metadata();
     this.volume = new Volume();
-    this.lastMessage = null;
     
     const demuxAndPlay = audioData => {
       let channelData;
@@ -134,8 +136,9 @@ class Player extends EventTarget {
   }
 }
 class LocalPlayer extends Player {
-  constructor(...args) {
-    super(...args);
+  constructor(id, parent) {
+    super(id);
+    this.parent = parent;
   }
   setPose(position = this.pose.position, quaternion = this.pose.quaternion, scale = this.pose.scale) {
     this.pose.set(position, quaternion, scale);
@@ -162,6 +165,139 @@ class LocalPlayer extends Player {
     }
   }
 }
+class Entity {
+  constructor(map, parent) {
+    this.map = map;
+    this.parent = parent;
+    
+    const _observe = (e, tx) => {
+      const keysChanged = Array.from(e.keysChanged.values());
+      if (keysChanged.includes('id') && this.map.get('id') === undefined) {
+        this.map.unobserve(_observe);
+      }
+    };
+    this.map.observe(_observe);
+  }
+  get(k) {
+    return this.map.get(k);
+  }
+  toJSON() {
+    return this.map.toJSON();
+  }
+  set(k, v) {
+    if (k === 'id') {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      this.map.set(k, v);
+    });
+  }
+  setJSON(o) {
+    if ('id' in o) {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      for (const k in o) {
+        this.map.set(k, o[k]);
+      }
+    });
+  }
+  delete(k) {
+    if (k === 'id') {
+      throw new Error('cannot edit id key');
+    }
+    this.parent.state.transact(() => {
+      this.map.delete(k);
+    });
+  }
+}
+class Room extends EventTarget {
+  constructor(parent) {
+    super();
+
+    this.state = new Y.Doc();
+    this.parent = parent;
+
+    let lastEntities = [];
+    const entities = this.state.getArray(roomEntitiesPrefix);
+    entities.observe(() => {
+      const nextEntities = entities.toJSON();
+
+      for (const id of nextEntities) {
+        if (!lastEntities.includes(id)) {
+          this.dispatchEvent(new MessageEvent('add', {
+            data: {
+              id,
+            },
+          }));
+        }
+      }
+      for (const id of lastEntities) {
+        if (!nextEntities.includes(id)) {
+          this.dispatchEvent(new MessageEvent('remove', {
+            data: {
+              id,
+            },
+          }));
+        }
+      }
+
+      lastEntities = nextEntities;
+    });
+
+    const _stateUpdate = uint8Array => {
+      console.log('room state update', this.state.toJSON());
+      
+      const data = Y.encodeStateAsUpdate(this.state);
+      this.parent.sendMessage([
+        MESSAGE.ROOMSTATE,
+        data,
+      ]);
+    };
+    this.state.on('update', _stateUpdate);
+  }
+  getEntities() {
+    const entities = this.state.getArray(roomEntitiesPrefix);
+    const entitiesJson = entities.toJSON();
+    return entitiesJson.map(id => {
+      const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
+      return new Entity(map, this);
+    });
+  }
+  getOrCreateEntity(id) {
+    let result;
+    this.state.transact(() => {
+      const entities = this.state.getArray(roomEntitiesPrefix);
+      const entitiesJson = entities.toJSON();
+      if (!entitiesJson.includes(id)) {
+        entities.push([id]);
+      }
+
+      const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
+      if (map.get('id') === undefined) {
+        map.set('id', id);
+      }
+      result = new Entity(map, this);
+    });
+    return result;
+  }
+  removeEntity(id) {
+    this.state.transact(() => {
+      const entities = this.state.getArray(roomEntitiesPrefix);
+      const entitiesJson = entities.toJSON();
+      const removeIndex = entitiesJson.indexOf(id);
+      if (removeIndex !== -1) {
+        entities.delete(removeIndex, 1);
+
+        const map = this.state.getMap(roomEntitiesPrefix + '.' + id);
+        const keys = Array.from(map.keys());
+        for (const key of keys) {
+          map.delete(key);
+        }
+      }
+    });
+  }
+}
 class WSRTC extends EventTarget {
   constructor(u) {
     super();
@@ -170,12 +306,22 @@ class WSRTC extends EventTarget {
     this.ws = null;
     this.localUser = new LocalPlayer(0, this);
     this.users = new Map();
+    this.room = new Room(this);
     this.mediaStream = null;
     this.audioEncoder = null;
     
     this.addEventListener('close', () => {
       this.users = new Map();
       this.disableMic();
+      console.log('close');
+    });
+    this.addEventListener('join', e => {
+      const player = e.data;
+      console.log('join', player);
+    });
+    this.addEventListener('leave', e => {
+      const player = e.data;
+      console.log('leave', player);
     });
 
     const ws = new WebSocket(u);
@@ -183,150 +329,164 @@ class WSRTC extends EventTarget {
     ws.binaryType = 'arraybuffer';
     ws.addEventListener('open', () => {
       const initialMessage = e => {
-        if (typeof e.data === 'string') {
-          const j = JSON.parse(e.data);
-          const {method} = j;
-          switch (method) {
-            case 'init': {
-              const {args: {id, users}} = j;
-              console.log('init: ' + JSON.stringify({
-                id,
-                users,
-              }, null, 2));
-              
-              for (const userId of users) {
-                if (userId !== id) {
-                  const player = new Player(userId, null);
-                  this.users.set(userId, player);
-                  this.dispatchEvent(new MessageEvent('join', {
-                    data: player,
-                  }));
-                }
-              }
-              ws.removeEventListener('message', initialMessage);
-              ws.addEventListener('message', mainMessage);
-              ws.addEventListener('close', e => {
-                this.state = 'closed';
-                this.ws = null;
-                this.dispatchEvent(new MessageEvent('close'));
-              });
-              
-              // emit open event
-              this.state = 'open';
-              this.dispatchEvent(new MessageEvent('open'));
-              
-              // latch local user id
-              this.localUser.id = id;
-              
-              // send initial pose/metadata
-              this.pushUserState();
-              
-              break;
+        const uint32Array = new Uint32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
+        const method = uint32Array[0];
+        // console.log('got data', e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT), uint32Array, method);
+
+        console.log('got method', method);
+
+        switch (method) {
+          case MESSAGE.INIT: {
+            // local user
+            let index = Uint32Array.BYTES_PER_ELEMENT;
+            const id = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+            this.localUser.id = id;
+            index += Uint32Array.BYTES_PER_ELEMENT;
+            
+            // users
+            const usersDataByteLength = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+            index += Uint32Array.BYTES_PER_ELEMENT;
+            const usersData = new Uint32Array(e.data, index, usersDataByteLength/Uint32Array.BYTES_PER_ELEMENT);
+            for (let i = 0; i < usersData.length; i++) {
+              const userId = usersData[i];
+              const player = new Player(userId);
+              this.users.set(userId, player);
+              this.dispatchEvent(new MessageEvent('join', {
+                data: player,
+              }));
             }
+            index += usersData.byteLength;
+            
+            // room
+            const roomDataByteLength = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+            index += Uint32Array.BYTES_PER_ELEMENT;
+            const data = new Uint8Array(e.data, index, roomDataByteLength);
+            Y.applyUpdate(this.room.state, data);
+            index += data.byteLength;
+            
+            // log
+            console.log('init', {
+              id: this.localUser.id,
+              users: Array.from(this.users.values()).map(user => user.toJSON()),
+              roomState: this.room.state.toJSON(),
+            });
+            
+            // finish setup
+            ws.removeEventListener('message', initialMessage);
+            ws.addEventListener('message', mainMessage);
+            ws.addEventListener('close', e => {
+              this.state = 'closed';
+              this.ws = null;
+              this.dispatchEvent(new MessageEvent('close'));
+            });
+            
+            // emit open event
+            this.state = 'open';
+            this.dispatchEvent(new MessageEvent('open'));
+            
+            // latch local user id
+            this.localUser.id = id;
+            
+            // send initial pose/metadata
+            this.pushUserState();
+            
+            break;
           }
         }
       };
       const mainMessage = e => {
-        // console.log('got message', e);
-        if (typeof e.data === 'string') {
-          const j = JSON.parse(e.data);
-          const {method} = j;
-          switch (method) {
-            case 'pose':
-            case 'audio': {
-              const {id} = j;
-              const player = this.users.get(id);
-              if (player) {
-                player.lastMessage = j;
-              } else {
-                console.warn('muultipart message for unknown player ' + id);
-              }
-              break;
-            }
-            case 'metadata': {
-              const {id} = j;
-              const player = this.users.get(id);
-              if (player) {
-                const {args} = j;
-                player.metadata.readUpdate(args);
-              } else {
-                console.warn('metadata message for unknown player ' + id);
-              }
-              break;
-            }
-            case 'join': {
-              const {id} = j;
-              const player = new Player(id);
-              this.users.set(id, player);
-              player.dispatchEvent(new MessageEvent('join'));
-              this.dispatchEvent(new MessageEvent('join', {
+        // console.log('got message', e.data);
+        
+        const uint32Array = new Uint32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
+        const method = uint32Array[0];
+        // console.log('got data', e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT), uint32Array, method);
+
+        switch (method) {
+          case MESSAGE.JOIN: {
+            // register the user locally
+            const id = uint32Array[1];
+            const player = new Player(id);
+            this.users.set(id, player);
+            player.dispatchEvent(new MessageEvent('join'));
+            this.dispatchEvent(new MessageEvent('join', {
+              data: player,
+            }));
+            // update the new user about ourselves
+            this.pushUserState();
+            break;
+          }
+          case MESSAGE.LEAVE: {
+            const id = uint32Array[1];
+            const player = this.users.get(id);
+            if (player) {
+              this.users.delete(id);
+              player.dispatchEvent(new MessageEvent('leave'));
+              this.dispatchEvent(new MessageEvent('leave', {
                 data: player,
               }));
-              // update the new user about us
-              this.pushUserState();
-              break;
-            }
-            case 'leave': {
-              const {id} = j;
-              const player = this.users.get(id);
-              if (player) {
-                this.users.delete(id);
-                player.dispatchEvent(new MessageEvent('leave'));
-                this.dispatchEvent(new MessageEvent('leave', {
-                  data: player,
-                }));
-              } else {
-                console.warn('leave message for unknown user ' + id);
-              }
-              break;
-            }
-            default: {
-              console.warn('unknown message method: ' + method);
-              break;
-            }
-          }
-        } else {
-          // console.log('got e', e.data);
-          
-          const uint32Array = new Uint32Array(e.data, 0, 1);
-          const id = uint32Array[0];
-          // console.log('got audio data', id);
-          const player = this.users.get(id);
-          if (player) {
-            const j = player.lastMessage;
-            if (j) {
-              player.lastMessage = null;
-              const data = new Uint8Array(e.data, Uint32Array.BYTES_PER_ELEMENT);
-              
-              const {method} = j;
-              switch (method) {
-                case 'pose': {
-                  const poseBuffer = new Float32Array(data.buffer, data.byteOffset);
-                  player.pose.readUpdate(poseBuffer);
-                  // console.log('got pose buffer', poseBuffer);
-                  break;
-                }
-                case 'audio': {
-                  const {args: {type, timestamp, duration}} = j;
-                  const encodedAudioChunk = new WsEncodedAudioChunk({
-                    type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
-                    timestamp,
-                    duration,
-                    data,
-                  });
-                  player.audioDecoder.decode(encodedAudioChunk);
-                  break;
-                }
-                default: {
-                  console.warn('unknown last message method: ' + method);
-                  break;
-                }
-              }
             } else {
-              console.warn('throwing away out-of-order binary data for user ' + id);
+              console.warn('leave message for unknown user ' + id);
             }
-          } else {
-            console.warn('received binary data for unknown user ' + id);
+            break;
+          }
+          case MESSAGE.POSE: {
+            const id = uint32Array[1];
+
+            const player = this.users.get(id);
+            if (player) {
+              const poseBuffer = new Float32Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, 3 + 4 + 3);
+              player.pose.readUpdate(poseBuffer);
+            } else {
+              console.warn('message for unknown player ' + id);
+            }
+            break;
+          }
+          case MESSAGE.AUDIO: {
+            const id = uint32Array[1];
+            const player = this.users.get(id);
+            if (player) {
+              const type = uint32Array[2] === 0 ? 'key' : 'delta';
+              const float32Array = new Float32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
+              const timestamp = float32Array[3];
+              const duration = float32Array[4];
+              const byteLength = uint32Array[5];
+              const data = new Uint8Array(e.data, 6 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+              
+              const encodedAudioChunk = new WsEncodedAudioChunk({
+                type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
+                timestamp,
+                duration,
+                data,
+              });
+              player.audioDecoder.decode(encodedAudioChunk);
+            } else {
+              console.warn('message for unknown player ' + id);
+            }
+            break;
+          }
+          case MESSAGE.USERSTATE: {
+            const id = uint32Array[1];
+            const player = this.users.get(id);
+            if (player) {
+              const byteLength = uint32Array[2];
+              const b = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+              const s = textDecoder.decode(b);
+              const o = JSON.parse(s);
+              player.metadata.readUpdate(o);
+            } else {
+              console.warn('message for unknown player ' + id);
+            }
+            break;
+          }
+          case MESSAGE.ROOMSTATE: {
+            const byteLength = uint32Array[1];
+            const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+            Y.applyUpdate(this.room.state, data);
+            break;
+          }
+          default: {
+            console.warn('unknown method id: ' + method);
+            break;
           }
         }
       };
@@ -346,30 +506,32 @@ class WSRTC extends EventTarget {
   }
   pushUserPose(p, q, s) {
     if (this.localUser.id) {
-      const data = new Float32Array(1 + 3 + 4 + 3);
-      const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-      uint32Array[0] = this.localUser.id;
-      const position = new Float32Array(data.buffer, data.byteOffset + 1*Float32Array.BYTES_PER_ELEMENT, 3);
+      const data = new Float32Array(3 + 4 + 3);
+      const position = new Float32Array(data.buffer, 0, 3);
       position.set(p);
-      const quaternion = new Float32Array(data.buffer, data.byteOffset + (1+3)*Float32Array.BYTES_PER_ELEMENT, 4);
+      const quaternion = new Float32Array(data.buffer, 3*Float32Array.BYTES_PER_ELEMENT, 4);
       quaternion.set(q);
-      const scale = new Float32Array(data.buffer, data.byteOffset + (1+3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+      const scale = new Float32Array(data.buffer, (3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
       scale.set(s);
-      this.ws.send(JSON.stringify({
-        method: 'pose',
-        id: this.localUser.id,
-      }));
-      this.ws.send(data);
+      data.staticSize = true;
+      this.sendMessage([
+        MESSAGE.POSE,
+        this.localUser.id,
+        data,
+      ]);
     }
   }
   pushUserMetadata(o) {
     if (this.localUser.id) {
-      this.ws.send(JSON.stringify({
-        method: 'metadata',
-        id: this.localUser.id,
-        args: o,
-      }));
+      this.sendMessage([
+        MESSAGE.USERSTATE,
+        this.localUser.id,
+        JSON.stringify(o),
+      ]);
     }
+  }
+  sendMessage(parts) {
+    this.ws.send(encodeMessage(parts));
   }
   close() {
     if (this.state === 'open') {
@@ -396,33 +558,19 @@ class WSRTC extends EventTarget {
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
     const muxAndSend = encodedChunk => {
-      // console.log('got chunk', encodedChunk);
       const {type, timestamp, duration} = encodedChunk;
-      const byteLength = encodedChunk.copyTo ?
-        encodedChunk.byteLength
-      :
-        encodedChunk.data.byteLength;
-      const data = new Uint8Array(
-        Uint32Array.BYTES_PER_ELEMENT +
-        byteLength
-      );
-      const uint32Array = new Uint32Array(data.buffer, data.byteOffset, 1);
-      uint32Array[0] = this.localUser.id;
-      if (encodedChunk.copyTo) { // new api
-        encodedChunk.copyTo(new Uint8Array(data.buffer, data.byteOffset + Uint32Array.BYTES_PER_ELEMENT));
-      } else { // old api
-        data.set(new Uint8Array(encodedChunk.data), Uint32Array.BYTES_PER_ELEMENT);
-      }
-      this.ws.send(JSON.stringify({
-        method: 'audio',
-        id: this.localUser.id,
-        args: {
-          type,
-          timestamp,
-          duration,
-        },
-      }));
-      this.ws.send(data);
+      
+      const timestampDurationBuffer = Float32Array.from([timestamp, duration]);
+      timestampDurationBuffer.staticSize = true;
+      
+      const data = getEncodedAudioChunkBuffer(encodedChunk);
+      this.sendMessage([
+        MESSAGE.AUDIO,
+        this.localUser.id,
+        type === 'key' ? 0 : 1,
+        timestampDurationBuffer,
+        data,
+      ]);
     };
     function onEncoderError(err) {
       console.warn('encoder error', err);
@@ -445,7 +593,10 @@ class WSRTC extends EventTarget {
   }
   disableMic() {
     if (this.mediaStream) {
-      this.mediaStream.close();
+      const tracks = this.mediaStream.getTracks();
+      for (const track of tracks) {
+        track.stop();
+      }
       this.mediaStream = null;
     }
     if (this.audioEncoder) {
