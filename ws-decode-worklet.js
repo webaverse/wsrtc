@@ -1,7 +1,7 @@
 const numTicks = 1;
 const sampleScale = 2;
 
-class WsWorklet extends AudioWorkletProcessor {
+class WsDecodeWorklet extends AudioWorkletProcessor {
   constructor (...args) {
     super(...args);
     
@@ -75,4 +75,4 @@ class WsWorklet extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor('ws-worklet', WsWorklet);
+registerProcessor('ws-decode-worklet', WsDecodeWorklet);
