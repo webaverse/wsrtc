@@ -61,9 +61,7 @@ wss.on('connection', (ws, req) => {
     }
   }
   
-  // console.log('got ws', req.url);
   ws.addEventListener('message', e => {
-    // console.log('got message', e.data);
     for (const user of room.users) {
       if (user !== localUser) {
         user.ws.send(e.data);
