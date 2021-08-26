@@ -14,7 +14,7 @@ class Pose extends EventTarget {
     this.quaternion = quaternion;
     this.scale = scale;
     
-    this.extraArrayBuffer = new ArrayBuffer(1024);
+    this.extraArrayBuffer = new ArrayBuffer(4096);
     this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
   }
   set(position, quaternion, scale, extra) {
