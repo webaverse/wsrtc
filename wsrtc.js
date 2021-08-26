@@ -209,12 +209,14 @@ class Entity {
     this.map.observe(_observe);
   }
   get(k) {
+    k = k + '';
     return this.map.get(k);
   }
   toJSON() {
     return this.map.toJSON();
   }
   set(k, v) {
+    k = k + '';
     if (k === 'id') {
       throw new Error('cannot edit id key');
     }
@@ -233,6 +235,7 @@ class Entity {
     });
   }
   delete(k) {
+    k = k + '';
     if (k === 'id') {
       throw new Error('cannot edit id key');
     }
