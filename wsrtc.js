@@ -13,11 +13,28 @@ class Pose extends EventTarget {
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
+    
+    this.extraArrayBuffer = new ArrayBuffer(1024);
+    this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
   }
-  set(position, quaternion, scale) {
+  set(position, quaternion, scale, extra) {
     this.position.set(position);
     this.quaternion.set(quaternion);
     this.scale.set(scale);
+    
+    if (extra) {
+      if (extra.byteLength > 0) {
+        if (extra.byteLength <= this.extraArrayBuffer.byteLength) {
+          this.extra = new Uint8Array(this.extraArrayBuffer, 0, extra.byteLength);
+          this.extra.set(new Uint8Array(extra.buffer, extra.byteOffset, extra.byteLength));
+        } else {
+          console.warn('cannot set pose extra due to buffer overflow');
+          this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
+        }
+      } else {
+        this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
+      }
+    }
   }
   readUpdate(poseBuffer) {
     const position = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset, 3);
@@ -26,6 +43,19 @@ class Pose extends EventTarget {
     this.quaternion.set(quaternion);
     const scale = new Float32Array(poseBuffer.buffer, poseBuffer.byteOffset + (3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
     this.scale.set(scale);
+    
+    const extraByteLength = new Uint32Array(poseBuffer.buffer, poseBuffer.byteOffset + (3+4+3)*Float32Array.BYTES_PER_ELEMENT, 1)[0];
+    if (extraByteLength > 0) {
+      if (extraByteLength <= this.extraArrayBuffer.byteLength) {
+        this.extra = new Uint8Array(this.extraArrayBuffer, 0, extraByteLength);
+        this.extra.set(new Uint8Array(poseBuffer.buffer, poseBuffer.byteOffset + (3+4+3)*Float32Array.BYTES_PER_ELEMENT + Uint32Array.BYTES_PER_ELEMENT, extraByteLength));
+      } else {
+        console.warn('cannot update pose extra due to buffer overflow');
+        this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
+      }
+    } else {
+      this.extra = new Uint8Array(this.extraArrayBuffer, 0, 0);
+    }
     
     this.dispatchEvent(new MessageEvent('update'));
   }
@@ -140,12 +170,12 @@ class LocalPlayer extends Player {
     super(id);
     this.parent = parent;
   }
-  setPose(position = this.pose.position, quaternion = this.pose.quaternion, scale = this.pose.scale) {
-    this.pose.set(position, quaternion, scale);
+  setPose(position = this.pose.position, quaternion = this.pose.quaternion, scale = this.pose.scale, extra) {
+    this.pose.set(position, quaternion, scale, extra);
     this.pose.dispatchEvent(new MessageEvent('update'));
     
     if (this.id) {
-      this.parent.pushUserPose(position, quaternion, scale);
+      this.parent.pushUserPose(position, quaternion, scale, extra);
     }
   }
   setMetadata(o) {
@@ -434,7 +464,7 @@ class WSRTC extends EventTarget {
 
             const player = this.users.get(id);
             if (player) {
-              const poseBuffer = new Float32Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, 3 + 4 + 3);
+              const poseBuffer = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT);
               player.pose.readUpdate(poseBuffer);
             } else {
               console.warn('message for unknown player ' + id);
@@ -500,24 +530,33 @@ class WSRTC extends EventTarget {
   }
   pushUserState() {
     if (this.localUser.id) {
-      this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale);
+      this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale, this.localUser.pose.extra);
       this.pushUserMetadata(this.localUser.metadata.data);
     }
   }
-  pushUserPose(p, q, s) {
+  pushUserPose(p, q, s, extra) {
     if (this.localUser.id) {
-      const data = new Float32Array(3 + 4 + 3);
-      const position = new Float32Array(data.buffer, 0, 3);
+      const pqsPoseBuffer = new Float32Array(3 + 4 + 3);
+      const position = new Float32Array(pqsPoseBuffer.buffer, 0, 3);
       position.set(p);
-      const quaternion = new Float32Array(data.buffer, 3*Float32Array.BYTES_PER_ELEMENT, 4);
+      const quaternion = new Float32Array(pqsPoseBuffer.buffer, 3*Float32Array.BYTES_PER_ELEMENT, 4);
       quaternion.set(q);
-      const scale = new Float32Array(data.buffer, (3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
+      const scale = new Float32Array(pqsPoseBuffer.buffer, (3+4)*Float32Array.BYTES_PER_ELEMENT, 3);
       scale.set(s);
-      data.staticSize = true;
+      pqsPoseBuffer.staticSize = true;
+      
+      let extraPoseBuffer;
+      if (extra) {
+        extraPoseBuffer = extra;
+      } else {
+        extraPoseBuffer = new Uint8Array(0);
+      }
+      
       this.sendMessage([
         MESSAGE.POSE,
         this.localUser.id,
-        data,
+        pqsPoseBuffer,
+        extraPoseBuffer,
       ]);
     }
   }
