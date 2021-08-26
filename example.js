@@ -87,6 +87,9 @@ form.addEventListener('submit', e => {
             wsrtc.localUser.pose.position[1],
             1,
           ]),
+          undefined,
+          undefined,
+          Float32Array.from([42]),
         );
       };
       const mouseup = e => {
