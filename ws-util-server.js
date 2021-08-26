@@ -33,7 +33,7 @@ module.exports.encodeMessage = parts => {
         uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part.byteLength;
         index += Uint32Array.BYTES_PER_ELEMENT;
       }
-      data.set(new Uint8Array(part.buffer), index);
+      data.set(new Uint8Array(part.buffer, part.byteOffset, part.byteLength), index);
       index += part.byteLength;
     }
   }
