@@ -401,97 +401,103 @@ class WSRTC extends EventTarget {
           }
         }
       };
+      const _handleJoinMessage = (e, dataView) => {
+        // register the user locally
+        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const player = new Player(id);
+        this.users.set(id, player);
+        player.dispatchEvent(new MessageEvent('join'));
+        this.dispatchEvent(new MessageEvent('join', {
+          data: player,
+        }));
+        // update the new user about ourselves
+        this.pushUserState();
+      };
+      const _handleLeaveMessage = (e, dataView) => {
+        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const player = this.users.get(id);
+        if (player) {
+          this.users.delete(id);
+          player.dispatchEvent(new MessageEvent('leave'));
+          this.dispatchEvent(new MessageEvent('leave', {
+            data: player,
+          }));
+        } else {
+          console.warn('leave message for unknown user ' + id);
+        }
+      };
+      const _handlePoseMessage = (e, dataView) => {
+        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const player = this.users.get(id);
+        if (player) {
+          const poseBuffer = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT);
+          player.pose.readUpdate(poseBuffer);
+        } else {
+          console.warn('message for unknown player ' + id);
+        }
+      };
+      const _handleAudioMessage = (e, dataView) => {
+        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const player = this.users.get(id);
+        if (player) {
+          const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
+          const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
+          const byteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
+          const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+          
+          const encodedAudioChunk = new WsEncodedAudioChunk({
+            type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
+            timestamp,
+            data,
+          });
+          player.audioDecoder.decode(encodedAudioChunk);
+        } else {
+          console.warn('message for unknown player ' + id);
+        }
+      };
+      const _handleUserStateMessage = (e, dataView) => {
+        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const player = this.users.get(id);
+        if (player) {
+          const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
+          const b = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+          const s = textDecoder.decode(b);
+          const o = JSON.parse(s);
+          player.metadata.readUpdate(o);
+        } else {
+          console.warn('message for unknown player ' + id);
+        }
+      };
+      const _handleRoomStateMessage = (e, dataView) => {
+        const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+        Y.applyUpdate(this.room.state, data);
+      };
       const mainMessage = e => {
-        // console.log('got message', e.data);
-        
-        // const uint32Array = new Uint32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
         const dataView = new DataView(e.data);
         const method = dataView.getUint32(0, true);
-        // console.log('got data', e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT), uint32Array, method);
-
         switch (method) {
-          case MESSAGE.JOIN: {
-            // register the user locally
-            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const player = new Player(id);
-            this.users.set(id, player);
-            player.dispatchEvent(new MessageEvent('join'));
-            this.dispatchEvent(new MessageEvent('join', {
-              data: player,
-            }));
-            // update the new user about ourselves
-            this.pushUserState();
+          case MESSAGE.JOIN:
+            _handleJoinMessage(e, dataView);
             break;
-          }
-          case MESSAGE.LEAVE: {
-            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const player = this.users.get(id);
-            if (player) {
-              this.users.delete(id);
-              player.dispatchEvent(new MessageEvent('leave'));
-              this.dispatchEvent(new MessageEvent('leave', {
-                data: player,
-              }));
-            } else {
-              console.warn('leave message for unknown user ' + id);
-            }
+          case MESSAGE.LEAVE:
+            _handleLeaveMessage(e, dataView);
             break;
-          }
-          case MESSAGE.POSE: {
-            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const player = this.users.get(id);
-            if (player) {
-              const poseBuffer = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT);
-              player.pose.readUpdate(poseBuffer);
-            } else {
-              console.warn('message for unknown player ' + id);
-            }
+          case MESSAGE.POSE:
+            _handlePoseMessage(e, dataView);
             break;
-          }
-          case MESSAGE.AUDIO: {
-            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const player = this.users.get(id);
-            if (player) {
-              const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
-              const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
-              const byteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
-              const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-              
-              const encodedAudioChunk = new WsEncodedAudioChunk({
-                type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
-                timestamp,
-                data,
-              });
-              player.audioDecoder.decode(encodedAudioChunk);
-            } else {
-              console.warn('message for unknown player ' + id);
-            }
+          case MESSAGE.AUDIO:
+            _handleAudioMessage(e, dataView);
             break;
-          }
-          case MESSAGE.USERSTATE: {
-            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const player = this.users.get(id);
-            if (player) {
-              const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
-              const b = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-              const s = textDecoder.decode(b);
-              const o = JSON.parse(s);
-              player.metadata.readUpdate(o);
-            } else {
-              console.warn('message for unknown player ' + id);
-            }
+          case MESSAGE.USERSTATE:
+            _handleUserStateMessage(e, dataView);
             break;
-          }
-          case MESSAGE.ROOMSTATE: {
-            const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-            const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-            Y.applyUpdate(this.room.state, data);
+          case MESSAGE.ROOMSTATE:
+            _handleRoomStateMessage(e, dataView);
             break;
-          }
-          default: {
+          default:
             console.warn('unknown method id: ' + method);
             break;
-          }
         }
       };
       ws.addEventListener('message', initialMessage);
