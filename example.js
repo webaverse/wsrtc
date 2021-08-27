@@ -89,7 +89,11 @@ form.addEventListener('submit', e => {
           ]),
           undefined,
           undefined,
-          Float32Array.from([42]),
+          [
+            'lol',
+            2,
+            Float32Array.from([1, 2, 3, 4]),
+          ],
         );
       };
       const mouseup = e => {
@@ -114,7 +118,9 @@ form.addEventListener('submit', e => {
       const player = e.data;
       player.audioNode.connect(WSRTC.getAudioContext().destination);
       player.pose.addEventListener('update', e => {
-        // console.log('pose update', player.id, player.pose.position.join(','));
+        if (player.pose.extra.length > 0) {
+          console.log('pose update', player.id, player.pose.position.join(','), player.pose.extra.slice());
+        }
       });
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
