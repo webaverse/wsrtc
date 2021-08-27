@@ -127,6 +127,8 @@ export class WsAudioEncoder {
       const {args: {data}} = e.data;
       const encodedChunk = {
         data,
+        timestamp: 0,
+        duration: 1,
       };
       output(encodedChunk);
     };
