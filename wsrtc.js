@@ -453,14 +453,12 @@ class WSRTC extends EventTarget {
             if (player) {
               const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
               const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
-              const duration = dataView.getFloat32(4*Uint32Array.BYTES_PER_ELEMENT, true);
-              const byteLength = dataView.getUint32(5*Uint32Array.BYTES_PER_ELEMENT, true);
-              const data = new Uint8Array(e.data, 6 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+              const byteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
+              const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
               
               const encodedAudioChunk = new WsEncodedAudioChunk({
                 type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
                 timestamp,
-                duration,
                 data,
               });
               player.audioDecoder.decode(encodedAudioChunk);
@@ -565,20 +563,19 @@ class WSRTC extends EventTarget {
 
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
-    const timestampDurationBuffer = new Float32Array(2);
+    const timestampBuffer = new Float32Array(1);
+    timestampBuffer.staticSize = true;
     const muxAndSend = encodedChunk => {
-      const {type, timestamp, duration} = encodedChunk;
+      const {type, timestamp} = encodedChunk;
       
-      timestampDurationBuffer[0] = timestamp;
-      timestampDurationBuffer[1] = duration;
-      timestampDurationBuffer.staticSize = true;
+      timestampBuffer[0] = timestamp;
       
       const data = getEncodedAudioChunkBuffer(encodedChunk);
       this.sendMessage([
         MESSAGE.AUDIO,
         this.localUser.id,
         type === 'key' ? 0 : 1,
-        timestampDurationBuffer,
+        timestampBuffer,
         data,
       ]);
     };
