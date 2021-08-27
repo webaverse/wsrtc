@@ -101,22 +101,6 @@ class Metadata extends EventTarget {
     return this.data;
   }
 }
-class Volume extends EventTarget {
-  constructor() {
-    super();
-    
-    this.value = 0;
-  }
-  readUpdate(value) {
-    this.value = value;
-    
-    this.dispatchEvent(new MessageEvent('update', {
-      data: {
-        value,
-      },
-    }));
-  }
-}
 
 class Player extends EventTarget {
   constructor(id) {
@@ -125,7 +109,7 @@ class Player extends EventTarget {
     this.id = id;
     this.pose = new Pose(undefined, undefined, undefined);
     this.metadata = new Metadata();
-    this.volume = new Volume();
+    this.volume = 0;
     
     const demuxAndPlay = audioData => {
       let channelData;
@@ -151,14 +135,8 @@ class Player extends EventTarget {
     
     const audioWorkletNode = new AudioWorkletNode(getAudioContext(), 'ws-output-worklet');
     audioWorkletNode.port.onmessage = e => {
-      const {method} = e.data;
-      switch (method) {
-        case 'volume': {
-          const {args: {value}} = e.data;
-          this.volume.readUpdate(value);
-          break;
-        }
-      }
+      this.volume = e.data;
+      // console.log('got volume', this.volume);
     };
     this.addEventListener('leave', () => {
       audioWorkletNode.disconnect();

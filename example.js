@@ -125,9 +125,6 @@ form.addEventListener('submit', e => {
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
       });
-      player.volume.addEventListener('volume', e => {
-        // console.log('volume', e.data);
-      });
       player.addEventListener('leave', e => {
         console.log('leave', player);
       });

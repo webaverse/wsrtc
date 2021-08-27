@@ -57,15 +57,11 @@ class WsOutputWorklet extends AudioWorkletProcessor {
     }
 
     if (++this.tick >= numTicks) {
-      this.port.postMessage({
-        method: 'volume',
-        args: {
-          value: this.numSamples > 0 ?
-            Math.min(this.maxSample * sampleScale, 1)
-          :
-            0,
-        },
-      });
+      const volume = this.numSamples > 0 ?
+        Math.min(this.maxSample * sampleScale, 1)
+      :
+        0;
+      this.port.postMessage(volume);
 
       this.tick = 0;
       this.maxSample = 0;
