@@ -1,19 +1,25 @@
+const bufferSize = 4096;
+
 class WsInputWorklet extends AudioWorkletProcessor {
   constructor (...args) {
     super(...args);
+
+    this.buffer = new Float32Array(bufferSize);
+    this.bufferIndex = 0;
   }
   process(inputs, outputs, parameters) {
     const channels = inputs[0];
     const firstChannel = channels[0];
-    const output = new Float32Array(firstChannel.length);
     for (let i = 0; i < firstChannel.length; i++) {
-      for (let j = 0; j < channels.length; j++) {
-        output[i] += channels[j][i];
+      if (this.bufferIndex < this.buffer.length) {
+        this.buffer[this.bufferIndex++] = firstChannel[i];
+      } else {
+        this.port.postMessage(this.buffer, [this.buffer.buffer]);
+        this.buffer = new Float32Array(bufferSize);
+        this.bufferIndex = 0;
       }
-      output[i] /= channels.length;
     }
-    // console.log('got samples', output);
-    this.port.postMessage(output, [output.buffer]);
+    
     return true;
   }
 }
