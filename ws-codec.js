@@ -136,15 +136,11 @@ export class WsAudioEncoder {
       output(e.data);
     };
     this.worker.onerror = error;
+    this.worker.postMessage('encode');
   }
   encode(audioData) {
     const channelData = getAudioDataBuffer(audioData);
-    this.worker.postMessage({
-      method: 'encode',
-      args: {
-        data: channelData,
-      },
-    }, [channelData.buffer]);
+    this.worker.postMessage(channelData, [channelData.buffer]);
   }
   close() {
     this.worker.terminate();
@@ -162,15 +158,11 @@ export class WsAudioDecoder {
       output(fakeAudioData);
     };
     this.worker.onerror = error;
+    this.worker.postMessage('decode');
   }
   decode(encodedAudioChunk) {
     const {data} = encodedAudioChunk;
-    this.worker.postMessage({
-      method: 'decode',
-      args: {
-        data,
-      },
-    }, [data.buffer]);
+    this.worker.postMessage(data, [data.buffer]);
   }
   close() {
     this.worker.terminate();

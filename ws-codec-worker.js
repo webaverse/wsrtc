@@ -19,51 +19,48 @@ function int16ToFloat32(inputArray) {
   return output;
 }
 
-const loadPromise = (async () => {
-  await libopus.waitForReady();
-
-  const enc = new libopus.Encoder(channelCount, sampleRate, bitrate, frameSize, voiceOptimization);
-  const dec = new libopus.Decoder(channelCount, sampleRate);
-  return {enc, dec};
-})();
-
-onmessage = async e => {
-  const {method} = e.data;
-  switch (method) {
+onmessage = e => {
+  const mode = e.data;
+  switch (mode) {
     case 'encode': {
-      const {args: {data}} = e.data;
+      onmessage = e => {};
       
-      const {enc} = await loadPromise;
-      const samples = floatTo16Bit(data);
-      enc.input(samples);
-      
-      let output;
-      while (output = enc.output()) {
-        output = output.slice();
-        postMessage({
-          data: output,
-          timestamp: 0, // fake
-          duration: 1, // fake
-        }, [output.buffer]);
-      }
-      
+      (async () => {
+        await libopus.waitForReady();
+        const enc = new libopus.Encoder(channelCount, sampleRate, bitrate, frameSize, voiceOptimization);
+        onmessage = e => {
+          const samples = floatTo16Bit(e.data);
+          enc.input(samples);
+          
+          let output;
+          while (output = enc.output()) {
+            output = output.slice();
+            postMessage({
+              data: output,
+              timestamp: 0, // fake
+              duration: 1, // fake
+            }, [output.buffer]);
+          }
+        }
+      })();
       break;
     }
     case 'decode': {
-      const {args: {data}} = e.data;
+      onmessage = e => {};
       
-      const {dec} = await loadPromise;
-      dec.input(data);
+      (async () => {
+        await libopus.waitForReady();
+        const dec = new libopus.Decoder(channelCount, sampleRate);
+        onmessage = e => {
+          dec.input(e.data);
 
-      let output;
-      while (output = dec.output()) {
-        const result2 = int16ToFloat32(output);
-        postMessage(result2, [result2.buffer]);
-      }
-      break;
-    }
-    default: {
-      console.warn('unknown method: ' + method);
+          let output;
+          while (output = dec.output()) {
+            const result2 = int16ToFloat32(output);
+            postMessage(result2, [result2.buffer]);
+          }
+        };
+      })();
       break;
     }
   }
