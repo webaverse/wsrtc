@@ -412,14 +412,15 @@ class WSRTC extends EventTarget {
       const mainMessage = e => {
         // console.log('got message', e.data);
         
-        const uint32Array = new Uint32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
-        const method = uint32Array[0];
+        // const uint32Array = new Uint32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
+        const dataView = new DataView(e.data);
+        const method = dataView.getUint32(0, true);
         // console.log('got data', e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT), uint32Array, method);
 
         switch (method) {
           case MESSAGE.JOIN: {
             // register the user locally
-            const id = uint32Array[1];
+            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const player = new Player(id);
             this.users.set(id, player);
             player.dispatchEvent(new MessageEvent('join'));
@@ -431,7 +432,7 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.LEAVE: {
-            const id = uint32Array[1];
+            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const player = this.users.get(id);
             if (player) {
               this.users.delete(id);
@@ -445,8 +446,7 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.POSE: {
-            const id = uint32Array[1];
-
+            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const player = this.users.get(id);
             if (player) {
               const poseBuffer = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT);
@@ -457,14 +457,14 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.AUDIO: {
-            const id = uint32Array[1];
+            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const player = this.users.get(id);
             if (player) {
-              const type = uint32Array[2] === 0 ? 'key' : 'delta';
+              const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
               const float32Array = new Float32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
               const timestamp = float32Array[3];
               const duration = float32Array[4];
-              const byteLength = uint32Array[5];
+              const byteLength = dataView.getUint32(5*Uint32Array.BYTES_PER_ELEMENT, true);
               const data = new Uint8Array(e.data, 6 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
               
               const encodedAudioChunk = new WsEncodedAudioChunk({
@@ -480,10 +480,10 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.USERSTATE: {
-            const id = uint32Array[1];
+            const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const player = this.users.get(id);
             if (player) {
-              const byteLength = uint32Array[2];
+              const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
               const b = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
               const s = textDecoder.decode(b);
               const o = JSON.parse(s);
@@ -494,7 +494,7 @@ class WSRTC extends EventTarget {
             break;
           }
           case MESSAGE.ROOMSTATE: {
-            const byteLength = uint32Array[1];
+            const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
             Y.applyUpdate(this.room.state, data);
             break;
