@@ -28,6 +28,22 @@ export const encodeMessage = parts => {
   }
   return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
 };
+export const encodeAudioMessage = (method, id, type, timestamp, data) => {
+  let index = 0;
+  encodedMessageDataView.setUint32(index, method, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  encodedMessageDataView.setUint32(index, id, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  encodedMessageDataView.setUint32(index, type === 'key' ? 0 : 1, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  encodedMessageDataView.setFloat32(index, timestamp, true);
+  index += Float32Array.BYTES_PER_ELEMENT;
+  encodedMessageDataView.setUint32(index, data.byteLength, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  encodedMessageUint8Array.set(data, index);
+  index += data.byteLength;
+  return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
+};
 const _align = (index, n) => index + (n - (index % n));
 const _align4 = index => _align(index, 4);
 export const encodeTypedMessage = (uint8Array, parts) => {

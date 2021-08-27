@@ -1,7 +1,7 @@
 import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
-import {encodeMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
+import {encodeMessage, encodeAudioMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
 import Y from './y.js';
 
 const textDecoder = new TextDecoder();
@@ -539,6 +539,10 @@ class WSRTC extends EventTarget {
     const encodedMessage = encodeMessage(parts);
     this.ws.send(encodedMessage);
   }
+  sendAudioMessage(id, type, timestamp, data) { // for performance
+    const encodedMessage = encodeAudioMessage(MESSAGE.AUDIO, id, type, timestamp, data);
+    this.ws.send(encodedMessage);
+  }
   close() {
     if (this.state === 'open') {
       this.ws.disconnect();
@@ -563,21 +567,10 @@ class WSRTC extends EventTarget {
 
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
-    const timestampBuffer = new Float32Array(1);
-    timestampBuffer.staticSize = true;
     const muxAndSend = encodedChunk => {
       const {type, timestamp} = encodedChunk;
-      
-      timestampBuffer[0] = timestamp;
-      
       const data = getEncodedAudioChunkBuffer(encodedChunk);
-      this.sendMessage([
-        MESSAGE.AUDIO,
-        this.localUser.id,
-        type === 'key' ? 0 : 1,
-        timestampBuffer,
-        data,
-      ]);
+      this.sendAudioMessage(this.localUser.id, type, timestamp, data);
     };
     function onEncoderError(err) {
       console.warn('encoder error', err);
