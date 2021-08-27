@@ -1,13 +1,14 @@
-const numTicks = 1;
-const sampleScale = 2;
+const volumeUpdateRate = 20;
+const volumeScale = 2;
 
 class WsOutputWorklet extends AudioWorkletProcessor {
   constructor (...args) {
     super(...args);
     
     this.buffers = [];
-    this.tick = 0;
+    this.lastVolumeTime = 0;
     this.maxSample = 0;
+    this.numSamples = 0;
     
     this.port.onmessage = e => {
       this.buffers.push(e.data);
@@ -56,14 +57,16 @@ class WsOutputWorklet extends AudioWorkletProcessor {
       }
     }
 
-    if (++this.tick >= numTicks) {
+    const now = Date.now();
+    const timeDiff = now - this.lastVolumeTime;
+    if (timeDiff >= volumeUpdateRate) {
       const volume = this.numSamples > 0 ?
-        Math.min(this.maxSample * sampleScale, 1)
+        Math.min(this.maxSample * volumeScale, 1)
       :
         0;
       this.port.postMessage(volume);
 
-      this.tick = 0;
+      this.lastVolumeTime = now;
       this.maxSample = 0;
       this.numSamples = 0;
     }
