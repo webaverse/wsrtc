@@ -1,10 +1,10 @@
 body {
   margin: 0;
   font-family: 'Bangers';
-  user-drag: none;
 }
 * {
   box-sizing: border-box;
+  user-drag: none;
 }
 form {
   display: flex;
