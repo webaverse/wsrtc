@@ -41,10 +41,9 @@ onmessage = async e => {
       while (output = enc.output()) {
         output = output.slice();
         postMessage({
-          method: 'encode',
-          args: {
-            data: output,
-          },
+          data: output,
+          timestamp: 0, // fake
+          duration: 1, // fake
         }, [output.buffer]);
       }
       
@@ -59,13 +58,7 @@ onmessage = async e => {
       let output;
       while (output = dec.output()) {
         const result2 = int16ToFloat32(output);
-        
-        postMessage({
-          method: 'decode',
-          args: {
-            data: result2,
-          },
-        }, [result2.buffer]);
+        postMessage(result2, [result2.buffer]);
       }
       break;
     }

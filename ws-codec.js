@@ -133,13 +133,7 @@ export class WsAudioEncoder {
       type: 'module',
     });
     this.worker.onmessage = e => {
-      const {args: {data}} = e.data;
-      const encodedChunk = {
-        data,
-        timestamp: 0,
-        duration: 1,
-      };
-      output(encodedChunk);
+      output(e.data);
     };
     this.worker.onerror = error;
   }
@@ -164,8 +158,7 @@ export class WsAudioDecoder {
     });
     const fakeAudioData = new FakeAudioData(null);
     this.worker.onmessage = e => {
-      const {args: {data}} = e.data;
-      fakeAudioData.set(data);
+      fakeAudioData.set(e.data);
       output(fakeAudioData);
     };
     this.worker.onerror = error;
