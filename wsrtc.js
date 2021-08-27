@@ -1,7 +1,7 @@
 import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
-import {encodeMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer} from './ws-util.js';
+import {encodeMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
 import Y from './y.js';
 
 const textDecoder = new TextDecoder();
@@ -108,16 +108,7 @@ class Player extends EventTarget {
     this.volume = 0;
     
     const demuxAndPlay = audioData => {
-      let channelData;
-      if (audioData.copyTo) { // new api
-        channelData = new Float32Array(audioData.numberOfFrames);
-        audioData.copyTo(channelData, {
-          planeIndex: 0,
-          frameCount: audioData.numberOfFrames,
-        });
-      } else { // old api
-        channelData = audioData.buffer.getChannelData(0);
-      }
+      const channelData = getAudioDataBuffer(audioData);
       audioWorkletNode.port.postMessage(channelData, [channelData.buffer]);
     };
     function onDecoderError(err) {
