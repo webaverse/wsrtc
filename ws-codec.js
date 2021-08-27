@@ -130,7 +130,7 @@ export function WsEncodedAudioChunk(o) {
 
 export class WsAudioEncoder {
   constructor({output, error}) {
-    this.worker = new Worker('ws-codec-worker.js', {
+    this.worker = new Worker(`${import.meta.url.replace(/(\/)[^\/]*$/, '$1')}ws-codec-worker.js`, {
       type: 'module',
     });
     this.worker.onmessage = e => {
