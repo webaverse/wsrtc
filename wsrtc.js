@@ -461,9 +461,8 @@ class WSRTC extends EventTarget {
             const player = this.users.get(id);
             if (player) {
               const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
-              const float32Array = new Float32Array(e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT));
-              const timestamp = float32Array[3];
-              const duration = float32Array[4];
+              const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
+              const duration = dataView.getFloat32(4*Uint32Array.BYTES_PER_ELEMENT, true);
               const byteLength = dataView.getUint32(5*Uint32Array.BYTES_PER_ELEMENT, true);
               const data = new Uint8Array(e.data, 6 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
               
