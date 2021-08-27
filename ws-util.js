@@ -51,12 +51,11 @@ export const encodeTypedMessage = (uint8Array, parts) => {
     } else if (typeof part === 'string') {
       uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.STRING;
       index += Uint32Array.BYTES_PER_ELEMENT;
-      const b = textEncoder.encode(part);
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = b.byteLength;
-      index += Uint32Array.BYTES_PER_ELEMENT;
       
-      uint8Array.set(b, index);
-      index += b.byteLength;
+      const {written} = textEncoder.encodeInto(part, new Uint8Array(uint8Array.buffer, uint8Array.byteOffset + index + Uint32Array.BYTES_PER_ELEMENT));
+      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = written;
+      index += Uint32Array.BYTES_PER_ELEMENT;
+      index += written;
       index = _align4(index);
     } else if (part instanceof Uint32Array) {
       uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.UINT32ARRAY;
