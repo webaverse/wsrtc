@@ -8,8 +8,8 @@ export const ensureAudioContext = async () => {
       sampleRate,
     });
     await Promise.all([
-      audioCtx.audioWorklet.addModule('ws-input-worklet.js'),
-      audioCtx.audioWorklet.addModule('ws-output-worklet.js'),
+      audioCtx.audioWorklet.addModule(`${import.meta.url.replace(/(\/)[^\/]*$/, '$1')}ws-input-worklet.js`),
+      audioCtx.audioWorklet.addModule(`${import.meta.url.replace(/(\/)[^\/]*$/, '$1')}ws-output-worklet.js`),
     ]);
   }
 };
