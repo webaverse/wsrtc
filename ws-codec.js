@@ -80,20 +80,21 @@ export class WsMediaStreamAudioReader {
     
     const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-input-worklet');
     audioWorkletNode.port.onmessage = e => {
-      this.buffers.push(e.data);
-      _flush();
+      if (this.cbs.length > 0) {
+        this.cbs.shift()(e.data);
+      } else {
+        this.buffers.push(e.data);
+      }
     };
     
     mediaStreamSourceNode.connect(audioWorkletNode);
     
-    const _flush = () => {
-      while (this.buffers.length > 0 && this.cbs.length > 0) {
-        this.cbs.shift()(this.buffers.shift());
-      }
-    };
     mediaStream.addEventListener('close', e => {
-      this.buffers.push(null);
-      _flush();
+      if (this.cbs.length > 0) {
+        this.cbs.shift()(null);
+      } else {
+        this.buffers.push(null);
+      }
     });
   }
   read() {
