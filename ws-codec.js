@@ -45,19 +45,34 @@ export function WsAudioDecoder({output, error}) {
 
 // NO WebCodecs suport
 
-function makeFakeAudioData(data) {
-  return {
-    buffer: {
-      getChannelData(n) {
-        return data;
+class FakeAudioData {
+  constructor() {
+    this.privateData = null;
+    this.buffer = {
+      getChannelData: n => {
+        return this.privateData;
       },
-    },
-  };
+    };
+  }
+  set(data) {
+    this.privateData = data;
+  }
+}
+class FakeIteratorResult {
+  constructor(value) {
+    this.value = value;
+    this.done = false;
+  }
+  setDone(done) {
+    this.done = done;
+  }
 }
 export class WsMediaStreamAudioReader {
   constructor(mediaStream) {
     this.buffers = [];
     this.cbs = [];
+    this.fakeAudioData = new FakeAudioData();
+    this.fakeIteratorResult = new FakeIteratorResult(this.fakeAudioData);
     
     const audioCtx = getAudioContext();
     
@@ -82,32 +97,26 @@ export class WsMediaStreamAudioReader {
     });
   }
   read() {
-    const _makeResult = b => {
-      if (b) {
-        const value = makeFakeAudioData(b);
-        return {
-          value,
-          done: false,
-        };
-      } else {
-        return {
-          value: null,
-          done: true,
-        };
-      }
-
-    };
     if (this.buffers.length > 0) {
-      const result = _makeResult(this.buffers.shift());
-      return Promise.resolve(result);
+      const b = this.buffers.shift();
+      if (b) {
+        this.fakeAudioData.set(b);
+      } else {
+        this.fakeIteratorResult.setDone(true);
+      }
+      return Promise.resolve(this.fakeIteratorResult);
     } else {
       let accept;
       const p = new Promise((a, r) => {
         accept = a;
       });
       this.cbs.push(b => {
-        const result = _makeResult(b);
-        accept(result);
+        if (b) {
+          this.fakeAudioData.set(b);
+        } else {
+          this.fakeIteratorResult.setDone(true);
+        }
+        accept(this.fakeIteratorResult);
       });
       return p;
     }
@@ -153,10 +162,11 @@ export class WsAudioDecoder {
     this.worker = new Worker('ws-codec-worker.js', {
       type: 'module',
     });
+    const fakeAudioData = new FakeAudioData(null);
     this.worker.onmessage = e => {
       const {args: {data}} = e.data;
-      const audioData = makeFakeAudioData(data);
-      output(audioData);
+      fakeAudioData.set(data);
+      output(fakeAudioData);
     };
     this.worker.onerror = error;
   }
