@@ -32,17 +32,31 @@ form.addEventListener('submit', e => {
     container.appendChild(playerEl);
     player.addEventListener('leave', e => {
       container.removeChild(playerEl);
+      cancelAnimationFrame(frame);
     });
     
     const _updatePlayerDomPosition = () => {
-      playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2 + player.volume.value/10})`;
+      playerEl.style.transform = `translate3d(${player.pose.position[0] * window.innerWidth}px, ${player.pose.position[1] * window.innerHeight}px, 0) scale(${1 - player.pose.position[2] * 0.2 + player.volume/10})`;
       playerEl.style.backgroundColor = player.pose.position[2] ? '#333' : null;
-      volumeEl.style.height = `${player.volume.value * 100}%`;
+      volumeEl.style.height = `${player.volume * 100}%`;
       volumeEl.style.filter = `hue-rotate(${player.pose.position[2] ? 180 : 0}deg)`;
     };
     _updatePlayerDomPosition();
-    player.pose.addEventListener('update', _updatePlayerDomPosition);
-    player.volume.addEventListener('update', _updatePlayerDomPosition);
+    // player.pose.addEventListener('update', _updatePlayerDomPosition);
+    
+    let frame = null;
+    const _recurse = () => {
+      frame = requestAnimationFrame(() => {
+        _recurse();
+        
+        _updatePlayerDomPosition();
+        
+        /* if (player.pose.extra.length > 0) {
+          console.log('pose update', player.id, player.pose.position.join(','), player.pose.extra.slice());
+        } */
+      });
+    };
+    _recurse();
   };
   const _startWsrtc = async () => {
     await WSRTC.waitForReady();
@@ -117,11 +131,6 @@ form.addEventListener('submit', e => {
     wsrtc.addEventListener('join', e => {
       const player = e.data;
       player.audioNode.connect(WSRTC.getAudioContext().destination);
-      player.pose.addEventListener('update', e => {
-        if (player.pose.extra.length > 0) {
-          console.log('pose update', player.id, player.pose.position.join(','), player.pose.extra.slice());
-        }
-      });
       player.metadata.addEventListener('update', e => {
         console.log('metadata update', player.id, player.metadata.toJSON());
       });

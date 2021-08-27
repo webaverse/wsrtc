@@ -6,10 +6,8 @@ import Y from './y.js';
 
 const textDecoder = new TextDecoder();
 
-class Pose extends EventTarget {
+class Pose {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
-    super();
-    
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
@@ -65,8 +63,6 @@ class Pose extends EventTarget {
     this.extraUint8ArrayFull.set(extraUint8Array);
     this.extraArray.length = 0;
     this.extraArrayNeedsUpdate = byteLength > 0;
-    
-    this.dispatchEvent(new MessageEvent('update'));
   }
 }
 class Metadata extends EventTarget {
@@ -159,7 +155,6 @@ class LocalPlayer extends Player {
   }
   setPose(position = this.pose.position, quaternion = this.pose.quaternion, scale = this.pose.scale, extra) {
     this.pose.set(position, quaternion, scale, extra);
-    this.pose.dispatchEvent(new MessageEvent('update'));
     
     if (this.id) {
       this.parent.pushUserPose(this.pose.position, this.pose.quaternion, this.pose.scale, this.pose.extraUint8ArrayFull, this.pose.extraUint8ArrayByteLength);
