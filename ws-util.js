@@ -17,7 +17,7 @@ export const encodeMessage = parts => {
       index += written;
     } else if (part.byteLength >= 0) {
       if (!part.staticSize) {
-        encodedMessageUint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part;
+        encodedMessageUint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part.byteLength;
         index += Uint32Array.BYTES_PER_ELEMENT;
       }
       encodedMessageUint8Array.set(new Uint8Array(part.buffer, part.byteOffset, part.byteLength), index);
