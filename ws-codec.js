@@ -47,15 +47,15 @@ export function WsAudioDecoder({output, error}) {
 
 class FakeAudioData {
   constructor() {
-    this.privateData = null;
+    this.data = null;
     this.buffer = {
       getChannelData: n => {
-        return this.privateData;
+        return this.data;
       },
     };
   }
   set(data) {
-    this.privateData = data;
+    this.data = data;
   }
 }
 class FakeIteratorResult {
@@ -139,8 +139,7 @@ export class WsAudioEncoder {
     this.worker.postMessage('encode');
   }
   encode(audioData) {
-    const channelData = getAudioDataBuffer(audioData);
-    this.worker.postMessage(channelData, [channelData.buffer]);
+    this.worker.postMessage(audioData.data, [audioData.data.buffer]);
   }
   close() {
     this.worker.terminate();
