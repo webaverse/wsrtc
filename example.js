@@ -132,10 +132,10 @@ form.addEventListener('submit', e => {
       const player = e.data;
       player.audioNode.connect(WSRTC.getAudioContext().destination);
       player.metadata.addEventListener('update', e => {
-        console.log('metadata update', player.id, player.metadata.toJSON());
+        // console.log('metadata update', player.id, player.metadata.toJSON());
       });
       player.addEventListener('leave', e => {
-        console.log('leave', player);
+        // console.log('leave', player);
       });
       
       _createPlayerDom(player);
