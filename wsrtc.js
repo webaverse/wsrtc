@@ -358,9 +358,11 @@ class WSRTC extends EventTarget {
               const userId = usersData[i];
               const player = new Player(userId);
               this.users.set(userId, player);
-              this.dispatchEvent(new MessageEvent('join', {
-                data: player,
-              }));
+              if (userId !== this.localUser.id) {
+                this.dispatchEvent(new MessageEvent('join', {
+                  data: player,
+                }));
+              }
             }
             index += usersData.byteLength;
             
