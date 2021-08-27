@@ -1,7 +1,7 @@
 import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
-import {encodeMessage, encodeAudioMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
+import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
 import Y from './y.js';
 
 const textDecoder = new TextDecoder();
@@ -509,21 +509,15 @@ class WSRTC extends EventTarget {
   }
   pushUserPose(p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) {
     if (this.localUser.id) {
-      p.staticSize = true;
-      q.staticSize = true;
-      s.staticSize = true;
-      
-      const extraUint8Array = new Uint8Array(extraUint8ArrayFull.buffer, extraUint8ArrayFull.byteOffset, extraUint8ArrayByteLength);
-      extraUint8Array.staticSize = true;
-      
-      this.sendMessage([
+      this.sendPoseMessage(
         MESSAGE.POSE,
         this.localUser.id,
         p,
         q,
         s,
-        extraUint8Array,
-      ]);
+        extraUint8ArrayFull,
+        extraUint8ArrayByteLength,
+      );
     }
   }
   pushUserMetadata(o) {
@@ -539,8 +533,12 @@ class WSRTC extends EventTarget {
     const encodedMessage = encodeMessage(parts);
     this.ws.send(encodedMessage);
   }
-  sendAudioMessage(id, type, timestamp, data) { // for performance
-    const encodedMessage = encodeAudioMessage(MESSAGE.AUDIO, id, type, timestamp, data);
+  sendAudioMessage(method, id, type, timestamp, data) { // for performance
+    const encodedMessage = encodeAudioMessage(method, id, type, timestamp, data);
+    this.ws.send(encodedMessage);
+  }
+  sendPoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) { // for performance
+    const encodedMessage = encodePoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength);
     this.ws.send(encodedMessage);
   }
   close() {
@@ -570,7 +568,13 @@ class WSRTC extends EventTarget {
     const muxAndSend = encodedChunk => {
       const {type, timestamp} = encodedChunk;
       const data = getEncodedAudioChunkBuffer(encodedChunk);
-      this.sendAudioMessage(this.localUser.id, type, timestamp, data);
+      this.sendAudioMessage(
+        MESSAGE.AUDIO,
+        this.localUser.id,
+        type,
+        timestamp,
+        data,
+      );
     };
     function onEncoderError(err) {
       console.warn('encoder error', err);

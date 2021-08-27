@@ -44,6 +44,26 @@ export const encodeAudioMessage = (method, id, type, timestamp, data) => {
   index += data.byteLength;
   return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
 };
+export const encodePoseMessage = (method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) => {
+  let index = 0;
+
+  encodedMessageDataView.setUint32(index, method, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  encodedMessageDataView.setUint32(index, id, true);
+  index += Uint32Array.BYTES_PER_ELEMENT;
+  
+  encodedMessageUint8Array.set(new Uint8Array(p.buffer, p.byteOffset, p.byteLength), index);
+  index += p.byteLength;
+  encodedMessageUint8Array.set(new Uint8Array(q.buffer, q.byteOffset, q.byteLength), index);
+  index += q.byteLength;
+  encodedMessageUint8Array.set(new Uint8Array(s.buffer, s.byteOffset, s.byteLength), index);
+  index += s.byteLength;
+  
+  encodedMessageUint8Array.set(new Uint8Array(extraUint8ArrayFull.buffer, extraUint8ArrayFull.byteOffset, extraUint8ArrayByteLength), index);
+  index += extraUint8ArrayByteLength;
+  
+  return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
+};
 const _align = (index, n) => index + (n - (index % n));
 const _align4 = index => _align(index, 4);
 export const encodeTypedMessage = (uint8Array, parts) => {
