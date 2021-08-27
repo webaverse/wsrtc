@@ -3,7 +3,7 @@ import {TYPE} from './ws-constants.js';
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const encodedMessageUint8Array = new Uint8Array(4096);
-const encodedMessageDataView = new DataView(encodedMessageUint8Array.buffer);
+const encodedMessageDataView = new DataView(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset);
 export const encodeMessage = parts => {
   let index = 0;
   for (const part of parts) {
