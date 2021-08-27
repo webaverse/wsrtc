@@ -33,50 +33,51 @@ const _align4 = index => _align(index, 4);
 export const encodeTypedMessage = (uint8Array, parts) => {
   const uint32Array = new Uint32Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength/Uint32Array.BYTES_PER_ELEMENT);
   const float32Array = new Float32Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength/Float32Array.BYTES_PER_ELEMENT);
+  const dataView = new DataView(uint8Array.buffer, uint8Array.byteOffset);
   
   let index = 0;
   for (const part of parts) {
     if (typeof part === 'number') {
       if (Number.isInteger(part)) {
-        uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.INT;
+        dataView.setUint32(index, TYPE.INT, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
-        uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part;
+        dataView.setUint32(index, part, true)
         index += Uint32Array.BYTES_PER_ELEMENT;
       } else {
-        uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.FLOAT;
+        dataView.setUint32(index, TYPE.FLOAT, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
-        float32Array[index/Float32Array.BYTES_PER_ELEMENT] = part;
-        index += Uint32Array.BYTES_PER_ELEMENT;
+        dataView.setFloat32(index, part, true);
+        index += Float32Array.BYTES_PER_ELEMENT;
       }
     } else if (typeof part === 'string') {
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.STRING;
+      dataView.setUint32(index, TYPE.STRING, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
       
       const {written} = textEncoder.encodeInto(part, new Uint8Array(uint8Array.buffer, uint8Array.byteOffset + index + Uint32Array.BYTES_PER_ELEMENT));
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = written;
+      dataView.setUint32(index, written, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
       index += written;
       index = _align4(index);
     } else if (part instanceof Uint32Array) {
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.UINT32ARRAY;
+      dataView.setUint32(index, TYPE.UINT32ARRAY, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part.length;
+      dataView.setUint32(index, part.length, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
       
-      uint32Array.set(part, index/Uint32Array.BYTES_PER_ELEMENT);
+      uint8Array.set(new Uint8Array(part.buffer, part.byteOffset, part.byteLength), index);
       index += part.byteLength;
     } else if (part instanceof Float32Array) {
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.FLOAT32ARRAY;
+      dataView.setUint32(index, TYPE.FLOAT32ARRAY, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part.length;
+      dataView.setUint32(index, part.length, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
       
-      float32Array.set(part, index/Float32Array.BYTES_PER_ELEMENT);
+      uint8Array.set(new Uint8Array(part.buffer, part.byteOffset, part.byteLength), index);
       index += part.byteLength;
     } else if (part instanceof Uint8Array) {
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = TYPE.UINT32ARRAY;
+      dataView.setUint32(index, TYPE.UINT32ARRAY, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
-      uint32Array[index/Uint32Array.BYTES_PER_ELEMENT] = part.length;
+      dataView.setUint32(index, part.length, true);
       index += Uint32Array.BYTES_PER_ELEMENT;
       
       uint8Array.set(part, index);
@@ -89,40 +90,38 @@ export const encodeTypedMessage = (uint8Array, parts) => {
   return index;
 };
 export const decodeTypedMessage = (uint8Array, uint8ArrayByteLength, parts) => {
-  const uint32Array = new Uint32Array(uint8Array.buffer, uint8Array.byteOffset, uint8ArrayByteLength/Uint32Array.BYTES_PER_ELEMENT);
-  const float32Array = new Float32Array(uint8Array.buffer, uint8Array.byteOffset, uint8ArrayByteLength/Float32Array.BYTES_PER_ELEMENT);
+  const dataView = new DataView(uint8Array.buffer, uint8Array.byteOffset);
   
   parts.length = 0;
   for (let index = 0; index < uint8ArrayByteLength;) {
-    const type = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+    const type = dataView.getUint32(index, true);
     index += Uint32Array.BYTES_PER_ELEMENT;
 
     switch (type) {
       case TYPE.INT: {
-        const part = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+        const part = dataView.getUint32(index, true);
         parts.push(part);
         index += Uint32Array.BYTES_PER_ELEMENT;
         break;
       }
       case TYPE.FLOAT: {
-        const part = float32Array[index/Float32Array.BYTES_PER_ELEMENT];
+        const part = dataView.getFloat32(index, true);
         parts.push(part);
         index += Float32Array.BYTES_PER_ELEMENT;
         break;
       }
       case TYPE.STRING: {
-        const byteLength = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+        const byteLength = dataView.getUint32(index, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
         
-        const b = new Uint8Array(uint8Array.buffer, index, byteLength);
-        const part = textDecoder.decode(b);
+        const part = textDecoder.decode(new Uint8Array(uint8Array.buffer, index, byteLength));
         parts.push(part);
         index += byteLength;
         index = _align4(index);
         break;
       }
       case TYPE.UINT32ARRAY: {
-        const length = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+        const length = dataView.getUint32(index, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
         
         const part = new Uint32Array(uint8Array.buffer, index, length);
@@ -131,7 +130,7 @@ export const decodeTypedMessage = (uint8Array, uint8ArrayByteLength, parts) => {
         break;
       }
       case TYPE.FLOAT32ARRAY: {
-        const length = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+        const length = dataView.getUint32(index, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
         
         const part = new Float32Array(uint8Array.buffer, index, length);
@@ -140,7 +139,7 @@ export const decodeTypedMessage = (uint8Array, uint8ArrayByteLength, parts) => {
         break;
       }
       case TYPE.UINT8ARRAY: {
-        const length = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
+        const length = dataView.getUint32(index, true);
         index += Uint32Array.BYTES_PER_ELEMENT;
         
         const part = new Uint8Array(uint8Array.buffer, index, length);
