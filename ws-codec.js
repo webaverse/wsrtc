@@ -161,8 +161,7 @@ export class WsAudioDecoder {
     this.worker.postMessage('decode');
   }
   decode(encodedAudioChunk) {
-    const {data} = encodedAudioChunk;
-    this.worker.postMessage(data, [data.buffer]);
+    this.worker.postMessage(encodedAudioChunk.data, [encodedAudioChunk.data.buffer]);
   }
   close() {
     this.worker.terminate();
