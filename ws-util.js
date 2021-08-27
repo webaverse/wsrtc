@@ -31,8 +31,6 @@ export const encodeMessage = parts => {
 const _align = (index, n) => index + (n - (index % n));
 const _align4 = index => _align(index, 4);
 export const encodeTypedMessage = (uint8Array, parts) => {
-  const uint32Array = new Uint32Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength/Uint32Array.BYTES_PER_ELEMENT);
-  const float32Array = new Float32Array(uint8Array.buffer, uint8Array.byteOffset, uint8Array.byteLength/Float32Array.BYTES_PER_ELEMENT);
   const dataView = new DataView(uint8Array.buffer, uint8Array.byteOffset);
   
   let index = 0;
