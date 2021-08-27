@@ -11,7 +11,9 @@ const jsonParse = s => {
   }
 };
 const sendMessage = (ws, parts) => {
-  ws.send(encodeMessage(parts));
+  let encodedMessage = encodeMessage(parts);
+  encodedMessage = encodedMessage.slice(); // deduplicate
+  ws.send(encodedMessage);
 };
 
 class User {
