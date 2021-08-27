@@ -16,3 +16,14 @@ export const MESSAGE = (() => {
     ROOMSTATE: i++,
   };
 })();
+export const TYPE = (() => {
+  let i = 1;
+  return {
+    INT: i++,
+    FLOAT: i++,
+    STRING: i++,
+    UINT32ARRAY: i++,
+    FLOAT32ARRAY: i++,
+    UINT8ARRAY: i++,
+  };
+})();
