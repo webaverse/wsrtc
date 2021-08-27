@@ -575,10 +575,12 @@ class WSRTC extends EventTarget {
 
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
+    const timestampDurationBuffer = new Float32Array(2);
     const muxAndSend = encodedChunk => {
       const {type, timestamp, duration} = encodedChunk;
       
-      const timestampDurationBuffer = Float32Array.from([timestamp, duration]);
+      timestampDurationBuffer[0] = timestamp;
+      timestampDurationBuffer[1] = duration;
       timestampDurationBuffer.staticSize = true;
       
       const data = getEncodedAudioChunkBuffer(encodedChunk);
