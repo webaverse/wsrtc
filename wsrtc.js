@@ -25,6 +25,7 @@ class Pose {
     }
     return this.extraArray;
   }
+  set extra(v) {}
   set(position, quaternion, scale, extra) {
     this.position.set(position);
     this.quaternion.set(quaternion);
