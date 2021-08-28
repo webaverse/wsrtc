@@ -624,3 +624,4 @@ WSRTC.waitForReady = async () => {
 WSRTC.getAudioContext = getAudioContext;
 
 export default WSRTC;
+globalThis.WSRTC = WSRTC;
