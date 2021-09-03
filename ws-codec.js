@@ -149,7 +149,7 @@ export class WsAudioEncoder {
 
 export class WsAudioDecoder {
   constructor({output, error}) {
-    this.worker = new Worker(`${import.meta.url}/ws-codec-worker.js`, {
+    this.worker = new Worker(`${import.meta.url.replace(/(\/)[^\/]*$/, '$1')}ws-codec-worker.js`, {
       type: 'module',
     });
     const fakeAudioData = new FakeAudioData(null);
