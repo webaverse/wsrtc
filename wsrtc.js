@@ -557,20 +557,17 @@ class WSRTC extends EventTarget {
       throw new Error('connection not open');
     }
   }
-  async enableMic() {
+  async enableMic(mediaStream) {
     if (this.state !== 'open') {
       throw new Error('connection not open');
     }
     if (this.mediaStream) {
       throw new Error('mic already enabled');
     }
-    
-    this.mediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount,
-        sampleRate,
-      },
-    });
+    if (!mediaStream) {
+      mediaStream = await WSRTC.getUserMedia();
+    }
+    this.mediaStream = mediaStream;
 
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
     
@@ -617,11 +614,22 @@ class WSRTC extends EventTarget {
       this.audioEncoder = null;
     }
   }
+  
+  static waitForReady() {
+    return ensureAudioContext();
+  }
+  static getAudioContext() {
+    return getAudioContext();
+  }
+  static getUserMedia() {
+    return navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount,
+        sampleRate,
+      },
+    });
+  }
 }
-WSRTC.waitForReady = async () => {
-  await ensureAudioContext();
-};
-WSRTC.getAudioContext = getAudioContext;
 
 export default WSRTC;
 globalThis.WSRTC = WSRTC;
