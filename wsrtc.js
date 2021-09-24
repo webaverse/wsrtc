@@ -556,7 +556,7 @@ class WSRTC extends EventTarget {
   }
   close() {
     if (this.state === 'open') {
-      this.ws.disconnect();
+      this.ws.close();
     } else {
       throw new Error('connection not open');
     }
