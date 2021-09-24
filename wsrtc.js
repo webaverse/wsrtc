@@ -607,10 +607,7 @@ class WSRTC extends EventTarget {
   }
   disableMic() {
     if (this.mediaStream) {
-      const tracks = this.mediaStream.getTracks();
-      for (const track of tracks) {
-        track.stop();
-      }
+      WSRTC.destroyUserMedia(this.mediaStream);
       this.mediaStream = null;
     }
     if (this.audioEncoder) {
@@ -632,6 +629,11 @@ class WSRTC extends EventTarget {
         sampleRate,
       },
     });
+  }
+  static destroyUserMedia(mediaStream) {
+    for (const track of mediaStream.getTracks()) {
+      track.stop();
+    }
   }
 }
 
