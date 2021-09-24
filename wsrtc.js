@@ -6,8 +6,10 @@ import Y from './y.js';
 
 const textDecoder = new TextDecoder();
 
-class Pose {
+class Pose extends EventTarget {
   constructor(position = Float32Array.from([0, 0, 0]), quaternion = Float32Array.from([0, 0, 0, 1]), scale = Float32Array.from([1, 1, 1])) {
+    super();
+    
     this.position = position;
     this.quaternion = quaternion;
     this.scale = scale;
@@ -64,6 +66,8 @@ class Pose {
     this.extraUint8ArrayFull.set(extraUint8Array);
     this.extraArray.length = 0;
     this.extraArrayNeedsUpdate = byteLength > 0;
+    
+    this.dispatchEvent(new MessageEvent('update'));
   }
 }
 class Metadata extends EventTarget {
