@@ -516,8 +516,8 @@ class WSRTC extends EventTarget {
   }
   pushUserState() {
     if (this.localUser.id) {
-      this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale, this.localUser.pose.extraUint8ArrayFull, this.localUser.pose.extraUint8ArrayByteLength);
       this.pushUserMetadata(this.localUser.metadata.data);
+      this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale, this.localUser.pose.extraUint8ArrayFull, this.localUser.pose.extraUint8ArrayByteLength);
     }
   }
   pushUserPose(p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) {
