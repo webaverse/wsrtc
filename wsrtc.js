@@ -319,11 +319,24 @@ class WSRTC extends EventTarget {
     this.users = new Map();
     this.room = new Room(this);
     this.mediaStream = null;
+    this.audioReader = null;
     this.audioEncoder = null;
     
     this.addEventListener('close', () => {
       this.users = new Map();
-      this.disableMic();
+      
+      if (this.mediaStream) {
+        this.mediaStream = null;
+      }
+      if (this.audioReader) {
+        this.audioReader.cancel();
+        this.audioReader = null;;
+      }
+      if (this.audioEncoder) {
+        this.audioEncoder.close();
+        this.audioEncoder = null;
+      }
+      // this.disableMic();
       // console.log('close');
     });
     this.addEventListener('join', e => {
@@ -562,9 +575,6 @@ class WSRTC extends EventTarget {
     }
   }
   async enableMic(mediaStream) {
-    if (this.state !== 'open') {
-      throw new Error('connection not open');
-    }
     if (this.mediaStream) {
       throw new Error('mic already enabled');
     }
@@ -574,6 +584,7 @@ class WSRTC extends EventTarget {
     this.mediaStream = mediaStream;
 
     const audioReader = new WsMediaStreamAudioReader(this.mediaStream);
+    this.audioReader = audioReader;
     
     const muxAndSend = encodedChunk => {
       const {type, timestamp} = encodedChunk;
@@ -609,6 +620,10 @@ class WSRTC extends EventTarget {
     if (this.mediaStream) {
       WSRTC.destroyUserMedia(this.mediaStream);
       this.mediaStream = null;
+    }
+    if (this.audioReader) {
+      this.audioReader.cancel();
+      this.audioReader = null;;
     }
     if (this.audioEncoder) {
       this.audioEncoder.close();

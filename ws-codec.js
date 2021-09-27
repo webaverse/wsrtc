@@ -78,24 +78,20 @@ export class WsMediaStreamAudioReader {
     
     const mediaStreamSourceNode = audioCtx.createMediaStreamSource(mediaStream);
     
-    const _pushAudioData = b => {
-      if (this.cbs.length > 0) {
-        this.cbs.shift()(b);
-      } else {
-        this.buffers.push(b);
-      }
-    };
-    
     const audioWorkletNode = new AudioWorkletNode(audioCtx, 'ws-input-worklet');
     audioWorkletNode.port.onmessage = e => {
-      _pushAudioData(e.data);
+      this.pushAudioData(e.data);
     };
     
     mediaStreamSourceNode.connect(audioWorkletNode);
     
-    mediaStream.addEventListener('close', e => {
-      _pushAudioData(null);
-    });
+    const close = e => {
+      this.cancel();
+    };
+    mediaStream.addEventListener('close', close);
+    this.cleanup = () => {
+      mediaStream.removeEventListener('close', close);
+    };
   }
   read() {
     if (this.buffers.length > 0) {
@@ -120,6 +116,17 @@ export class WsMediaStreamAudioReader {
         accept(this.fakeIteratorResult);
       });
       return p;
+    }
+  }
+  cancel() {
+    this.pushAudioData(null);
+    this.cleanup();
+  }
+  pushAudioData(b) {
+    if (this.cbs.length > 0) {
+      this.cbs.shift()(b);
+    } else {
+      this.buffers.push(b);
     }
   }
 }
