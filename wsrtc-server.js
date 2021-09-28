@@ -21,12 +21,6 @@ class User {
     this.id = id;
     this.ws = ws;
   }
-  /* toJSON() {
-    const {id} = this;
-    return {
-      id,
-    };
-  } */
 }
 class Room {
   constructor(url) {
