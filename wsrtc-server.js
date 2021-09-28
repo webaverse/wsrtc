@@ -24,8 +24,8 @@ class User {
   }
 }
 class Room {
-  constructor(url) {
-    this.url = url;
+  constructor(name) {
+    this.name = name;
     this.users = [];
     this.state = new Y.Doc();
   }
@@ -45,15 +45,16 @@ const _getOrCreateRoom = roomName => {
 };
 _getOrCreateRoom('Erithor');
 const _roomToJson = room => {
-  let {url, users, state} = room;
+  let {name, users, state} = room;
   users = users.map(user => {
     const {id} = user;
     return {
       id,
     };
   });
+  state = state.toJSON();
   return {
-    url,
+    name,
     users,
     state,
   };
