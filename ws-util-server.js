@@ -25,3 +25,11 @@ module.exports.encodeMessage = parts => {
   }
   return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
 };
+// hack to fix toJSON()
+module.exports.loadState = state => {
+  const objects = state.getArray('objects');
+  for (let i = 0; i < objects.length; i++) {
+    const objectId = objects.get(i);
+    const object = state.getMap('objects.' + objectId);
+  }
+};
