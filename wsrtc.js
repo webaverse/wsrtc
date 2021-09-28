@@ -257,7 +257,7 @@ class Room extends EventTarget {
     });
 
     const _stateUpdate = uint8Array => {
-      console.log('room state update', this.state.toJSON());
+      // console.log('room state update', this.state.toJSON());
       
       const data = Y.encodeStateAsUpdate(this.state);
       this.parent.sendMessage([
@@ -356,7 +356,7 @@ class WSRTC extends EventTarget {
         const method = uint32Array[0];
         // console.log('got data', e.data, 0, Math.floor(e.data.byteLength/Uint32Array.BYTES_PER_ELEMENT), uint32Array, method);
 
-        console.log('got method', method);
+        /// console.log('got method', method);
 
         switch (method) {
           case MESSAGE.INIT: {
