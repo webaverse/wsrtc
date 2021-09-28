@@ -139,6 +139,8 @@ const bindServer = server => {
     console.log('got req', req.method, req.url);
     
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', '*');
+    res.setHeader('Access-Control-Allow-Headers', '*');
     
     if (req.method === 'HEAD' || req.method === 'OPTIONS') {
       res.end();
