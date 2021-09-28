@@ -29,6 +29,9 @@ class Room {
     this.users = [];
     this.state = new Y.Doc();
   }
+  save() {
+    console.log('save room', this.name);
+  }
 }
 
 const wss = new ws.WebSocketServer({
