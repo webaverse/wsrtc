@@ -347,7 +347,6 @@ class WSRTC extends EventTarget {
       const player = e.data;
       console.log('leave', player);
     });
-
     const ws = new WebSocket(u);
     this.ws = ws;
     ws.binaryType = 'arraybuffer';
