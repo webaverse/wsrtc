@@ -558,8 +558,10 @@ class WSRTC extends EventTarget {
     }
   }
   sendMessage(parts) {
-    const encodedMessage = encodeMessage(parts);
-    this.ws.send(encodedMessage);
+    if (this.ws.readyState === WebSocket.OPEN) {
+      const encodedMessage = encodeMessage(parts);
+      this.ws.send(encodedMessage);
+    }
   }
   sendAudioMessage(method, id, type, timestamp, data) { // for performance
     const encodedMessage = encodeAudioMessage(method, id, type, timestamp, data);
