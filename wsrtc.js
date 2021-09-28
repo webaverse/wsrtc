@@ -1,7 +1,7 @@
 import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
-import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer} from './ws-util.js';
+import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer, loadState} from './ws-util.js';
 import Y from './y.js';
 
 const textDecoder = new TextDecoder();
@@ -386,7 +386,10 @@ class WSRTC extends EventTarget {
             const roomDataByteLength = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
             index += Uint32Array.BYTES_PER_ELEMENT;
             const data = new Uint8Array(e.data, index, roomDataByteLength);
-            Y.applyUpdate(this.room.state, data);
+            this.room.state.transact(() => {
+              Y.applyUpdate(this.room.state, data);
+              loadState(this.room.state);
+            });
             index += data.byteLength;
             
             // log
