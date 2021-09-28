@@ -140,7 +140,7 @@ const bindServer = server => {
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     
-    if (req.method === 'HEAD') {
+    if (req.method === 'HEAD' || req.method === 'OPTIONS') {
       res.end();
     } else {
       const o = url.parse(req.url, true);
