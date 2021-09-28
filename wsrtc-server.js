@@ -1,7 +1,7 @@
 const url = require('url');
 const ws = require('ws');
 const Y = require('yjs');
-const {encodeMessage} = require('./ws-util-server.js');
+const {encodeMessage, loadState} = require('./ws-util-server.js');
 const {MESSAGE} = require('./ws-constants-server.js');
 
 const jsonParse = s => {
@@ -136,48 +136,77 @@ wss.on('connection', (ws, req) => {
 });
 const bindServer = server => {
   server.on('request', (req, res) => {
-    const o = url.parse(req.url, true);
-    // console.log('server request', o);
-    const match = o.pathname.match(/^\/@worlds\/([\s\S]*)?$/);
-    if (match) {
-      const roomName = match[1];
-      if (req.method === 'GET') {
-        if (!roomName) {
-          const j = Array.from(rooms.values()).map(_roomToJson);
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify(j));
-        } else {
-          const room = rooms.get(roomName);
-          if (room) {
-            const j = _roomToJson(room);
+    console.log('got req', req.method, req.url);
+    
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    
+    if (req.method === 'HEAD') {
+      res.end();
+    } else {
+      const o = url.parse(req.url, true);
+      // console.log('server request', o);
+      const match = o.pathname.match(/^\/@worlds\/([\s\S]*)?$/);
+      if (match) {
+        const roomName = match[1];
+        if (req.method === 'GET') {
+          if (!roomName) {
+            const j = Array.from(rooms.values()).map(_roomToJson);
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(j));
+          } else {
+            const room = rooms.get(roomName);
+            if (room) {
+              const j = _roomToJson(room);
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify(j));
+            } else {
+              res.status = 404;
+              res.end('not found');
+            }
+          }
+        } else if (req.method === 'POST') {
+          if (roomName) {
+            const bs = [];
+            req.on('data', d => {
+              bs.push(d);
+            });
+            req.on('end', () => {
+              const b = Buffer.concat(bs);
+              bs.length = 0;
+              
+              const data = Uint8Array.from(b);
+              const room = _getOrCreateRoom(roomName);
+              room.state.transact(() => {
+                Y.applyUpdate(room.state, data);
+                loadState(room.state);
+              });
+              console.log('set room state', room.state.toJSON());
+              
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ok: true}));
+            });
+          } else {
+            res.status = 404;
+            res.end('not found');
+          }
+        } else if (req.method === 'DELETE') {
+          const room = rooms.get(roomName);
+          if (room) {
+            for (const user of room.users) {
+              user.ws.terminate();
+            }
+            rooms.delete(roomName);
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ok: true}));
           } else {
             res.status = 404;
             res.end('not found');
           }
         }
-      } else if (req.method === 'POST') {
-        const room = _getOrCreateRoom(roomName);
-        res.setHeader('Content-Type', 'application/json');
-        res.end(JSON.stringify({ok: true}));
-      } else if (req.method === 'DELETE') {
-        const room = rooms.get(roomName);
-        if (room) {
-          for (const user of room.users) {
-            user.ws.terminate();
-          }
-          rooms.delete(roomName);
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ok: true}));
-        } else {
-          res.status = 404;
-          res.end('not found');
-        }
+      } else {
+        res.statusCode = 404;
+        res.end('not found');
       }
-    } else {
-      res.statusCode = 404;
-      res.end('not found');
     }
   });
   server.on('upgrade', (req, socket, head) => {
