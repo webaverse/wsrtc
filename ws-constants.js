@@ -3,6 +3,7 @@ export const sampleRate = 48000;
 export const bitrate = 60000;
 export const frameSize = 20;
 export const voiceOptimization = true;
+// export const metadataPrefix = 'metadata';
 export const roomEntitiesPrefix = 'entities';
 export const MESSAGE = (() => {
   let i = 1;

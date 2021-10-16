@@ -70,7 +70,7 @@ class Pose extends EventTarget {
     this.dispatchEvent(new MessageEvent('update'));
   }
 }
-class Metadata extends EventTarget {
+/* class Metadata extends EventTarget {
   constructor() {
     super();
     
@@ -101,42 +101,91 @@ class Metadata extends EventTarget {
   toJSON() {
     return this.data;
   }
-}
+} */
 
 class Player extends EventTarget {
   constructor(id) {
     super();
     
     this.id = id;
-    this.pose = new Pose(undefined, undefined, undefined);
-    this.metadata = new Metadata();
+    this.pose = new Pose();
+    this.state = new Y.Doc();
     this.volume = 0;
-    
-    const demuxAndPlay = audioData => {
-      const channelData = getAudioDataBuffer(audioData);
-      audioWorkletNode.port.postMessage(channelData, [channelData.buffer]);
+
+    const _bindState = () => {
+      /* let lastEntities = [];
+      const entities = this.state.getArray(roomEntitiesPrefix);
+      entities.observe(() => {
+        const nextEntities = entities.toJSON();
+
+        for (const id of nextEntities) {
+          if (!lastEntities.includes(id)) {
+            this.dispatchEvent(new MessageEvent('add', {
+              data: {
+                id,
+              },
+            }));
+          }
+        }
+        for (const id of lastEntities) {
+          if (!nextEntities.includes(id)) {
+            this.dispatchEvent(new MessageEvent('remove', {
+              data: {
+                id,
+              },
+            }));
+          }
+        }
+
+        lastEntities = nextEntities;
+      }); */
+
+      const _stateUpdate = uint8Array => {
+        // console.log('room state update', this.state.toJSON());
+        
+        const data = Y.encodeStateAsUpdate(this.state);
+        this.parent.sendMessage([
+          MESSAGE.USERSTATE,
+          this.id,
+          data,
+        ]);
+      };
+      this.state.on('update', _stateUpdate);
     };
-    function onDecoderError(err) {
-      console.warn('decoder error', err);
-    }
-    const audioDecoder = new WsAudioDecoder({
-      output: demuxAndPlay,
-      error: onDecoderError,
-    });
-    this.audioDecoder = audioDecoder;
+    _bindState();
     
-    const audioWorkletNode = new AudioWorkletNode(getAudioContext(), 'ws-output-worklet');
-    audioWorkletNode.port.onmessage = e => {
-      this.volume = e.data;
-      // console.log('got volume', this.volume);
+    const _bindAudio = () => {    
+      const demuxAndPlay = audioData => {
+        const channelData = getAudioDataBuffer(audioData);
+        audioWorkletNode.port.postMessage(channelData, [channelData.buffer]);
+      };
+      function onDecoderError(err) {
+        console.warn('decoder error', err);
+      }
+      const audioDecoder = new WsAudioDecoder({
+        output: demuxAndPlay,
+        error: onDecoderError,
+      });
+      this.audioDecoder = audioDecoder;
+      
+      const audioWorkletNode = new AudioWorkletNode(getAudioContext(), 'ws-output-worklet');
+      audioWorkletNode.port.onmessage = e => {
+        this.volume = e.data;
+        // console.log('got volume', this.volume);
+      };
+      this.addEventListener('leave', () => {
+        audioWorkletNode.disconnect();
+        audioDecoder.close();
+      });
+      
+      this.audioNode = audioWorkletNode;
     };
-    this.addEventListener('leave', () => {
-      audioWorkletNode.disconnect();
-      audioDecoder.close();
-    });
-    
-    this.audioNode = audioWorkletNode;
+    _bindAudio();
   }
+  /* getMetadata(k) {
+    const metadata = this.state.getMap(metadataPrefix);
+    return metadata.get(k);
+  } */
   toJSON() {
     const {id} = this;
     return {
@@ -156,24 +205,17 @@ class LocalPlayer extends Player {
       this.parent.pushUserPose(this.pose.position, this.pose.quaternion, this.pose.scale, this.pose.extraUint8ArrayFull, this.pose.extraUint8ArrayByteLength);
     }
   }
-  setMetadata(o) {
-    this.metadata.set(o);
-
-    const keys = Object.keys(o);
-    if (keys.length > 0) {
-      this.metadata.dispatchEvent(new MessageEvent('update', {
-        data: {
-          keys,
-        },
-      }));
-    }
-    
-    if (this.id) {
-      this.parent.pushUserMetadata(o);
-    }
-  }
+  /* setMetadata(o) {
+    this.state.transact(() => {
+      const metadata = this.state.getMap(metadataPrefix);
+      for (const k in o) {
+        const v = o[k];
+        metadata.set(k, v);
+      }
+    });
+  } */
 }
-class Entity {
+/* class Entity {
   constructor(map, parent) {
     this.map = map;
     this.parent = parent;
@@ -221,7 +263,7 @@ class Entity {
       this.map.delete(k);
     });
   }
-}
+} */
 class Room extends EventTarget {
   constructor(parent) {
     super();
@@ -229,45 +271,48 @@ class Room extends EventTarget {
     this.state = new Y.Doc();
     this.parent = parent;
 
-    let lastEntities = [];
-    const entities = this.state.getArray(roomEntitiesPrefix);
-    entities.observe(() => {
-      const nextEntities = entities.toJSON();
+    const _bindState = () => {
+      /* let lastEntities = [];
+      const entities = this.state.getArray(roomEntitiesPrefix);
+      entities.observe(() => {
+        const nextEntities = entities.toJSON();
 
-      for (const id of nextEntities) {
-        if (!lastEntities.includes(id)) {
-          this.dispatchEvent(new MessageEvent('add', {
-            data: {
-              id,
-            },
-          }));
+        for (const id of nextEntities) {
+          if (!lastEntities.includes(id)) {
+            this.dispatchEvent(new MessageEvent('add', {
+              data: {
+                id,
+              },
+            }));
+          }
         }
-      }
-      for (const id of lastEntities) {
-        if (!nextEntities.includes(id)) {
-          this.dispatchEvent(new MessageEvent('remove', {
-            data: {
-              id,
-            },
-          }));
+        for (const id of lastEntities) {
+          if (!nextEntities.includes(id)) {
+            this.dispatchEvent(new MessageEvent('remove', {
+              data: {
+                id,
+              },
+            }));
+          }
         }
-      }
 
-      lastEntities = nextEntities;
-    });
+        lastEntities = nextEntities;
+      }); */
 
-    const _stateUpdate = uint8Array => {
-      // console.log('room state update', this.state.toJSON());
-      
-      const data = Y.encodeStateAsUpdate(this.state);
-      this.parent.sendMessage([
-        MESSAGE.ROOMSTATE,
-        data,
-      ]);
+      const _stateUpdate = uint8Array => {
+        // console.log('room state update', this.state.toJSON());
+        
+        const data = Y.encodeStateAsUpdate(this.state);
+        this.parent.sendMessage([
+          MESSAGE.ROOMSTATE,
+          data,
+        ]);
+      };
+      this.state.on('update', _stateUpdate);
     };
-    this.state.on('update', _stateUpdate);
+    _bindState();
   }
-  getEntities() {
+  /* getEntities() {
     const entities = this.state.getArray(roomEntitiesPrefix);
     const entitiesJson = entities.toJSON();
     return entitiesJson.map(id => {
@@ -307,7 +352,7 @@ class Room extends EventTarget {
         }
       }
     });
-  }
+  } */
 }
 class WSRTC extends EventTarget {
   constructor(u) {
@@ -481,10 +526,8 @@ class WSRTC extends EventTarget {
         const player = this.users.get(id);
         if (player) {
           const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
-          const b = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-          const s = textDecoder.decode(b);
-          const o = JSON.parse(s);
-          player.metadata.readUpdate(o);
+          const data = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+          Y.applyUpdate(player.state, data);
         } else {
           console.warn('message for unknown player ' + id);
         }
@@ -531,7 +574,7 @@ class WSRTC extends EventTarget {
   }
   pushUserState() {
     if (this.localUser.id) {
-      this.pushUserMetadata(this.localUser.metadata.data);
+      this.pushUserState(this.localUser.state);
       this.pushUserPose(this.localUser.pose.position, this.localUser.pose.quaternion, this.localUser.pose.scale, this.localUser.pose.extraUint8ArrayFull, this.localUser.pose.extraUint8ArrayByteLength);
     }
   }
@@ -548,12 +591,13 @@ class WSRTC extends EventTarget {
       );
     }
   }
-  pushUserMetadata(o) {
+  pushUserState(userState) {
     if (this.localUser.id) {
+      const encodedUserState = Y.encodeStateAsUpdate(userState);
       this.sendMessage([
         MESSAGE.USERSTATE,
         this.localUser.id,
-        JSON.stringify(o),
+        encodedUserState,
       ]);
     }
   }
