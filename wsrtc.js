@@ -2,7 +2,7 @@ import {channelCount, sampleRate, bitrate, roomEntitiesPrefix, MESSAGE} from './
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer, loadState} from './ws-util.js';
-import Y from './y.js';
+import * as Y from 'yjs';
 
 const textDecoder = new TextDecoder();
 
