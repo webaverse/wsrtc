@@ -181,7 +181,7 @@ class WSRTC extends EventTarget {
       const mainMessage = e => {
         const dataView = new DataView(e.data);
         const method = dataView.getUint32(0, true);
-        console.log('got main message', method);
+        // console.log('got main message', method);
         switch (method) {
           /* case MESSAGE.JOIN:
             _handleJoinMessage(e, dataView);
