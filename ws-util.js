@@ -211,11 +211,11 @@ export const getEncodedAudioChunkBuffer = encodedAudioChunk => {
     return new Uint8Array(encodedAudioChunk.data);
   }
 };
-// hack to fix toJSON()
+/* // hack to fix toJSON()
 export const loadState = state => {
   const objects = state.getArray('objects');
   for (let i = 0; i < objects.length; i++) {
     const objectId = objects.get(i);
     const object = state.getMap('objects.' + objectId);
   }
-};
+}; */
