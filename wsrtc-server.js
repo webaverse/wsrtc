@@ -55,17 +55,21 @@ class Room {
   }
   removePlayer(playerId) {
     this.state.transact(() => {
-      const playersArray = this.getPlayersArray();
-      const index = playersArray.indexOf(playerId);
-      
-      const player = this.state.getMap(playersMapName + '.' + playerId);
-      const keys = Array.from(player.keys());
-      for (const key of keys) {
-        player.delete(key);
-      }
-      
       const players = this.getPlayersState();
-      players.delete(index, 1);
+      
+      let playerIndex = -1;
+      for (let i = 0; i < players.length; i++) {
+        const player = players.get(i);
+        if (player.get('playerId') === playerId) {
+          playerIndex = i;
+          break;
+        }
+      }
+      if (playerIndex !== -1) {
+        players.delete(playerIndex, 1);
+      } else {
+        console.warn('could not remove unknown player id', playerId, players.toJSON());
+      }
     });
   }
   save() {
