@@ -1,5 +1,5 @@
 const textEncoder = new TextEncoder();
-const encodedMessageUint8Array = new Uint8Array(64 * 1024);
+const encodedMessageUint8Array = new Uint8Array(1024 * 1024);
 const encodedMessageDataView = new DataView(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset);
 module.exports.encodeMessage = parts => {
   let index = 0;
