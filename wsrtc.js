@@ -139,9 +139,9 @@ class WSRTC extends EventTarget {
         }
       }; */
       const _handleStateUpdateMessage = (e, dataView) => {
-        // console.log('got state update', dataView);
-        const uint8Array = new Uint8Array(dataView.buffer, dataView.byteOffset + Uint32Array.BYTES_PER_ELEMENT);
-        Y.applyUpdate(this.crdtState, uint8Array);
+        const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const data = new Uint8Array(dataView.buffer, dataView.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
+        Y.applyUpdate(this.crdtState, data);
       };
       const _handleAudioMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
