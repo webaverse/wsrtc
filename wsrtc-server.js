@@ -46,6 +46,22 @@ class Room {
         }
       }
     }
+    
+    const stateUpdateFn = (encodedUpdate, origin) => {
+      let encodedMessage = encodeMessage([
+        MESSAGE.STATE_UPDATE,
+        encodedUpdate,
+      ]);
+      encodedMessage = encodedMessage.slice(); // deduplicate
+      for (const player of this.players) {
+        player.ws.send(encodedMessage);
+      }
+    };
+    this.state.on('update', stateUpdateFn);
+    
+    this.cleanup = () => {
+      this.state.off('update', stateUpdateFn);
+    };
   }
   getPlayersState() {
     return this.state.getArray(playersMapName);
@@ -74,6 +90,10 @@ class Room {
   }
   save() {
     // console.log('save room', this.name);
+  }
+  destroy() {
+    this.cleanup();
+    this.cleanup = null;
   }
 }
 
@@ -125,29 +145,13 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
       
       // send init
       const encodedStateData = Y.encodeStateAsUpdate(room.state);
-      console.log('encoded state data', encodedStateData.constructor, encodedStateData.byteLength);
+      console.log('encoded state data', encodedStateData.byteLength);
       sendMessage(ws, [
         MESSAGE.INIT,
         encodedStateData,
       ]);
-
-      /* // notify users about the join
-      for (const user of room.users) {
-        if (user !== localUser) {
-          sendMessage(user.ws, [
-            MESSAGE.JOIN,
-            id,
-          ]);
-        }
-      } */
       
       ws.addEventListener('message', e => {
-        for (const player of room.players) {
-          if (player !== localPlayer) {
-            player.ws.send(e.data);
-          }
-        }
-        
         const dataView = new DataView(e.data.buffer, e.data.byteOffset);
         const method = dataView.getUint32(0, true);
         switch (method) {
