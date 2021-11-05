@@ -11,8 +11,8 @@ const privkeyPath = './certs/privkey.pem';
 const httpPort = process.env.HTTP_PORT || 3000;
 const httpsPort = process.env.HTTPS_PORT || 3001;
 
-console.log("HTTP Port is", httpPort);
-console.log("HTTPS Port is", httpsPort);
+console.log('HTTP Port is', httpPort);
+console.log('HTTPS Port is', httpsPort);
 
 let CERT = null;
 let PRIVKEY = null;
@@ -34,11 +34,11 @@ app.use((req, res, next) => {
 });
 app.use((req, res, next) => {
   if (req.url === '/config.json') {
-		res.status(404);
-		res.end();
+    res.status(404);
+    res.end();
   } else {
-	  next();
-	}
+    next();
+  }
 });
 const appStatic = express.static(__dirname);
 app.use(appStatic);
