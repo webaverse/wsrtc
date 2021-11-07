@@ -251,7 +251,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
               room.refresh();
               // console.log('refresh done');
               
-              const encodedStateData = Y.encodeStateAsUpdate(room.state);
+              /* const encodedStateData = Y.encodeStateAsUpdate(room.state);
               let encodedMessage = encodeMessage([
                 MESSAGE.STATE_REFRESH,
                 encodedStateData,
@@ -259,7 +259,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
               encodedMessage = encodedMessage.slice(); // deduplicate
               for (const player of room.players) {
                 player.ws.send(encodedMessage);
-              }
+              } */
             }
             
             // room.save();
