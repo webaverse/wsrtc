@@ -280,7 +280,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
     } else {
       const o = url.parse(req.url, true);
       // console.log('server request', o);
-      const match = o.pathname.match(/^\/scenes\/([\s\S]*)?$/);
+      const match = o.pathname.match(/^\/worlds\/([\s\S]*)?$/);
       if (match) {
         const roomName = match[1];
         if (req.method === 'GET') {
