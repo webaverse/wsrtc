@@ -94,9 +94,7 @@ class WSRTC extends EventTarget {
             
             // log
             console.log('init wsrtc 1', this.crdtState.toJSON());
-            
             this.dispatchEvent(new MessageEvent('init'));
-            
             console.log('init wsrtc 2', this.crdtState.toJSON());
             
             break;
