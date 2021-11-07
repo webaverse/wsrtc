@@ -12,6 +12,52 @@ const sendMessage = (ws, parts) => {
   encodedMessage = encodedMessage.slice(); // deduplicate
   ws.send(encodedMessage);
 };
+const _cloneApps = (oldApps, newApps = new Y.Array()) => {
+  for (let i = 0; i < oldApps.length; i++) {
+    const oldApp = oldApps.get(i);
+    const newApp = new Y.Map();
+    for (const k of oldApp.keys()) {
+      let v = oldApp.get(k);
+      v = JSON.parse(JSON.stringify(v));
+      newApp.set(k, v);
+    }
+    newApps.push([newApp]);
+  }
+  return newApps;
+};
+const _cloneState = oldState => {
+  const newState = new Y.Doc();
+
+  const oldApps = oldState.getArray(appsMapName);
+  const newApps = _cloneApps(oldApps, newState.getArray(appsMapName));
+  
+  const oldPlayers = oldState.getArray(playersMapName);
+  const newPlayers = newState.getArray(playersMapName);
+  for (let i = 0; i < oldPlayers.length; i++) {
+    const oldPlayer = oldPlayers.get(i);
+    const newPlayer = new Y.Map();
+    for (const k of oldPlayer.keys()) {
+      let v = oldPlayer.get(k);
+      if (k === 'apps') {
+        v = _cloneApps(v);
+      } else {
+        v = JSON.parse(JSON.stringify(v));
+      }
+      newPlayer.set(k, v);
+    }
+    newPlayers.push([newPlayer]);
+  }
+
+  /* if (JSON.stringify(oldState.toJSON()) !== JSON.stringify(newState.toJSON())) {
+    console.log('not the same:', [
+      JSON.stringify(oldState.toJSON()),
+      JSON.stringify(newState.toJSON()),
+    ]);
+
+    throw new Error('not the same');
+  } */
+  return newState;
+};
 
 class Player {
   constructor(playerId, ws) {
@@ -62,6 +108,8 @@ class Room {
     this.cleanup = () => {
       this.state.off('update', stateUpdateFn);
     };
+    
+    this.numFloatingUpdates = 0;
   }
   getPlayersState() {
     return this.state.getArray(playersMapName);
@@ -91,12 +139,17 @@ class Room {
   save() {
     // console.log('save room', this.name);
   }
+  refresh() {
+    this.state = _cloneState(this.state);
+    this.numFloatingUpdates = 0;
+  }
   destroy() {
     this.cleanup();
     this.cleanup = null;
   }
 }
 
+const maxFloatingUpdates = 100;
 const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = []) => {
   const wss = new ws.WebSocketServer({
     noServer: true,
@@ -159,6 +212,22 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
             Y.applyUpdate(room.state, data);
+            
+            if (++room.numFloatingUpdates > maxFloatingUpdates) {
+              room.refresh();
+              // console.log('refresh done');
+              
+              const encodedStateData = Y.encodeStateAsUpdate(room.state);
+              let encodedMessage = encodeMessage([
+                MESSAGE.STATE_REFRESH,
+                encodedStateData,
+              ]);
+              encodedMessage = encodedMessage.slice(); // deduplicate
+              for (const player of room.players) {
+                player.ws.send(encodedMessage);
+              }
+            }
+            
             // room.save();
             break;
           }

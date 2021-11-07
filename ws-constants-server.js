@@ -4,5 +4,6 @@ module.exports.MESSAGE = (() => {
     INIT: i++,
     AUDIO: i++,
     STATE_UPDATE: i++,
+    STATE_REFRESH: i++,
   };
 })();
