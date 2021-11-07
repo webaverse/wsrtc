@@ -184,6 +184,11 @@ class Room {
     this.bindState(newState);
     this.numFloatingUpdates = 0;
   }
+  toJSON() {
+    const j = this.state.toJSON();
+    j.name = this.name;
+    return j;
+  }
   destroy() {
     this.unbindState();
     
@@ -285,13 +290,13 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
         const roomName = match[1];
         if (req.method === 'GET') {
           if (!roomName) {
-            const j = Array.from(rooms.values()).map(room => room.state.toJSON());
+            const j = Array.from(rooms.values()).map(room => room.toJSON());
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(j));
           } else {
             const room = rooms.get(roomName);
             if (room) {
-              const j = room.state.toJSON();
+              const j = room.toJSON();
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(j));
             } else {
