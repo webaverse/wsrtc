@@ -12,6 +12,14 @@ const sendMessage = (ws, parts) => {
   encodedMessage = encodedMessage.slice(); // deduplicate
   ws.send(encodedMessage);
 };
+
+const _jsonParse = s => {
+  try {
+    return JSON.parse(s);
+  } catch (err) {
+    return null;
+  }
+};
 const _cloneApps = (oldApps, newApps = new Y.Array()) => {
   for (let i = 0; i < oldApps.length; i++) {
     const oldApp = oldApps.get(i);
@@ -58,6 +66,31 @@ const _cloneState = oldState => {
   } */
   return newState;
 };
+const _setArrayFromArray = (yArray, array) => {
+  for (const e of array) {
+    const map = new Y.Map();
+    for (const k in e) {
+      map.set(k, e[k]);
+    }
+    yArray.push([map]);
+  }
+};
+const _setObjectFromObject = (yObject, object) => {
+  for (const k in object) {
+    const v = object[k];
+    yObject.set(k, v);
+  }
+};
+const _setDocFromObject = (state, o) => {
+  for (const k in o) {
+    const v = o[k];
+    if (Array.isArray(v)) {
+      _setArrayFromArray(state.getArray(k), v);
+    } else if (typeof v === 'object') {
+      _setObjectFromObject(state.getMap(k), v);
+    }
+  }
+};
 
 class Player {
   constructor(playerId, ws) {
@@ -65,33 +98,33 @@ class Player {
     this.ws = ws;
   }
 }
+
+const maxFloatingUpdates = 100;
 class Room {
   constructor(name, initialState) {
     this.name = name;
     this.players = [];
-    this.state = new Y.Doc();
+    this.state = null;
+
+    this.numFloatingUpdates = 0;
+    this.unbindStateFn = null;
     
+    const newState = new Y.Doc();
     if (initialState) {
-      for (const k in initialState) {
-        const v = initialState[k];
-        if (Array.isArray(v)) {
-          const array = this.state.getArray(k);
-          for (const e of v) {
-            const map = new Y.Map();
-            for (const k2 in e) {
-              map.set(k2, e[k2]);
-            }
-            array.push([map]);
-          }
-        } else if (typeof v === 'object') {
-          const map = this.state.getMap(k);
-          for (const k2 in v) {
-            const v2 = v[k2];
-            map.set(k2, v2);
-          }
-        }
-      }
+      _setDocFromObject(newState, initialState);
     }
+    this.bindState(newState);
+  }
+  unbindState() {
+    if (this.unbindStateFn) {
+      this.unbindStateFn();
+      this.unbindStateFn = null;
+    }
+  }
+  bindState(nextState) {
+    this.unbindState();
+    
+    this.state = nextState;
     
     const stateUpdateFn = (encodedUpdate, origin) => {
       let encodedMessage = encodeMessage([
@@ -105,11 +138,9 @@ class Room {
     };
     this.state.on('update', stateUpdateFn);
     
-    this.cleanup = () => {
+    this.unbindStateFn = () => {
       this.state.off('update', stateUpdateFn);
     };
-    
-    this.numFloatingUpdates = 0;
   }
   getPlayersState() {
     return this.state.getArray(playersMapName);
@@ -136,24 +167,33 @@ class Room {
       }
     });
   }
+  setApps(newApps) {
+    this.state.transact(() => {
+      const appsArray = this.state.getArray(appsMapName);
+      while (appsArray.length > 0) {
+        appsArray.delete(appsArray.length - 1);
+      }
+      _setArrayFromArray(appsArray, newApps);
+    });
+  }
   save() {
     // console.log('save room', this.name);
   }
   refresh() {
-    this.state = _cloneState(this.state);
+    const newState = _cloneState(this.state);
+    this.bindState(newState);
     this.numFloatingUpdates = 0;
   }
   destroy() {
-    this.cleanup();
-    this.cleanup = null;
+    this.unbindState();
+    
+    for (const player of room.players) {
+      player.ws.terminate();
+    }
   }
 }
 
-const maxFloatingUpdates = 100;
 const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = []) => {
-  const wss = new ws.WebSocketServer({
-    noServer: true,
-  });
   const rooms = new Map();
   const _getOrCreateRoom = roomId => {
     let room = rooms.get(roomId);
@@ -163,21 +203,10 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
     }
     return room;
   };
-  const _roomToJson = room => {
-    let {name, /*players, */state} = room;
-    /* players = players.map(player => {
-      const {id} = player;
-      return {
-        id,
-      };
-    }); */
-    state = state.toJSON();
-    return {
-      name,
-      // players,
-      state,
-    };
-  };
+  
+  const wss = new ws.WebSocketServer({
+    noServer: true,
+  });
   wss.on('connection', (ws, req) => {
     const o = url.parse(req.url, true);
     const match = o.pathname.match(/^\/([a-z0-9\-_]+)$/i);
@@ -240,7 +269,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
   });
 
   server.on('request', (req, res) => {
-    console.log('got req', req.method, req.url);
+    console.log('ws got req', req.method, req.url);
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', '*');
@@ -251,18 +280,18 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
     } else {
       const o = url.parse(req.url, true);
       // console.log('server request', o);
-      const match = o.pathname.match(/^\/@worlds\/([\s\S]*)?$/);
+      const match = o.pathname.match(/^\/scenes\/([\s\S]*)?$/);
       if (match) {
         const roomName = match[1];
         if (req.method === 'GET') {
           if (!roomName) {
-            const j = Array.from(rooms.values()).map(_roomToJson);
+            const j = Array.from(rooms.values()).map(room => room.state.toJSON());
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(j));
           } else {
             const room = rooms.get(roomName);
             if (room) {
-              const j = _roomToJson(room);
+              const j = room.state.toJSON();
               res.setHeader('Content-Type', 'application/json');
               res.end(JSON.stringify(j));
             } else {
@@ -279,17 +308,16 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             req.on('end', () => {
               const b = Buffer.concat(bs);
               bs.length = 0;
+              const s = b.toString('utf8');
+              const j = _jsonParse(s);
               
-              const data = Uint8Array.from(b);
-              const room = _getOrCreateRoom(roomName);
-              room.state.transact(() => {
-                Y.applyUpdate(room.state, data);
-                loadState(room.state);
-              });
-              console.log('set room state', room.state.toJSON());
-              
-              res.setHeader('Content-Type', 'application/json');
-              res.end(JSON.stringify({ok: true}));
+              if (Array.isArray(j?.apps)) {
+                const room = _getOrCreateRoom(roomName);
+                room.setApps(j?.apps);
+                
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ok: true}));
+              }
             });
           } else {
             res.status = 404;
@@ -298,10 +326,9 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
         } else if (req.method === 'DELETE') {
           const room = rooms.get(roomName);
           if (room) {
-            for (const player of room.players) {
-              player.ws.terminate();
-            }
             rooms.delete(roomName);
+            room.destroy();
+            
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ok: true}));
           } else {
