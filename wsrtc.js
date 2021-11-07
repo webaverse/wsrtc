@@ -305,7 +305,7 @@ class WSRTC extends EventTarget {
       const data = getEncodedAudioChunkBuffer(encodedChunk);
       this.sendAudioMessage(
         MESSAGE.AUDIO,
-        this.localUser.id,
+        this.localPlayer.playerId,
         type,
         timestamp,
         data,
