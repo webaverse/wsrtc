@@ -209,7 +209,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
   });
   wss.on('connection', (ws, req) => {
     const o = url.parse(req.url, true);
-    const match = o.pathname.match(/^\/([a-z0-9\-_]+)$/i);
+    const match = o.pathname.match(/^\/worlds\/([a-z0-9\-_]+)$/i);
     const roomId = match && match[1];
     const {playerId} = o.query;
     if (roomId && playerId) {
