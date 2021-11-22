@@ -20,59 +20,13 @@ const _jsonParse = s => {
     return null;
   }
 };
-const _cloneApps = (oldApps, newApps = new Y.Array()) => {
-  for (let i = 0; i < oldApps.length; i++) {
-    const oldApp = oldApps.get(i);
-    const newApp = new Y.Map();
-    for (const k of oldApp.keys()) {
-      let v = oldApp.get(k);
-      v = JSON.parse(JSON.stringify(v));
-      newApp.set(k, v);
-    }
-    newApps.push([newApp]);
-  }
-  return newApps;
-};
-const _cloneState = oldState => {
-  const newState = new Y.Doc();
-
-  const oldApps = oldState.getArray(appsMapName);
-  const newApps = _cloneApps(oldApps, newState.getArray(appsMapName));
-  
-  const oldPlayers = oldState.getArray(playersMapName);
-  const newPlayers = newState.getArray(playersMapName);
-  for (let i = 0; i < oldPlayers.length; i++) {
-    const oldPlayer = oldPlayers.get(i);
-    const newPlayer = new Y.Map();
-    for (const k of oldPlayer.keys()) {
-      let v = oldPlayer.get(k);
-      if (k === 'apps') {
-        v = _cloneApps(v);
-      } else {
-        v = JSON.parse(JSON.stringify(v));
-      }
-      newPlayer.set(k, v);
-    }
-    newPlayers.push([newPlayer]);
-  }
-
-  /* if (JSON.stringify(oldState.toJSON()) !== JSON.stringify(newState.toJSON())) {
-    console.log('not the same:', [
-      JSON.stringify(oldState.toJSON()),
-      JSON.stringify(newState.toJSON()),
-    ]);
-
-    throw new Error('not the same');
-  } */
-  return newState;
-};
-const _setArrayFromArray = (yArray, array) => {
+const _setArrayFromArray = (zArray, array) => {
   for (const e of array) {
-    const map = new Y.Map();
+    const map = new Z.Map();
     for (const k in e) {
       map.set(k, e[k]);
     }
-    yArray.push([map]);
+    zArray.push([map]);
   }
 };
 const _setObjectFromObject = (yObject, object) => {
@@ -106,10 +60,9 @@ class Room {
     this.players = [];
     this.state = null;
 
-    this.numFloatingUpdates = 0;
     this.unbindStateFn = null;
     
-    const newState = new Y.Doc();
+    const newState = new Z.Doc();
     if (initialState) {
       _setDocFromObject(newState, initialState);
     }
@@ -179,11 +132,6 @@ class Room {
   save() {
     // console.log('save room', this.name);
   }
-  refresh() {
-    const newState = _cloneState(this.state);
-    this.bindState(newState);
-    this.numFloatingUpdates = 0;
-  }
   toJSON() {
     const j = this.state.toJSON();
     j.name = this.name;
@@ -231,7 +179,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
       });
       
       // send init
-      const encodedStateData = Y.encodeStateAsUpdate(room.state);
+      const encodedStateData = Z.encodeStateAsUpdate(room.state);
       console.log('encoded state data', encodedStateData.byteLength);
       sendMessage(ws, [
         MESSAGE.INIT,
@@ -245,22 +193,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
           case MESSAGE.STATE_UPDATE: {
             const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-            Y.applyUpdate(room.state, data);
-            
-            if (++room.numFloatingUpdates > maxFloatingUpdates) {
-              room.refresh();
-              // console.log('refresh done');
-              
-              /* const encodedStateData = Y.encodeStateAsUpdate(room.state);
-              let encodedMessage = encodeMessage([
-                MESSAGE.STATE_REFRESH,
-                encodedStateData,
-              ]);
-              encodedMessage = encodedMessage.slice(); // deduplicate
-              for (const player of room.players) {
-                player.ws.send(encodedMessage);
-              } */
-            }
+            Z.applyUpdate(room.state, data);
             
             // room.save();
             break;
