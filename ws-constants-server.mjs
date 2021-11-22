@@ -1,4 +1,4 @@
-module.exports.MESSAGE = (() => {
+export const MESSAGE = (() => {
   let i = 1;
   return {
     INIT: i++,
