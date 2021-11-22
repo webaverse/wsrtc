@@ -1,8 +1,8 @@
-const url = require('url');
-const ws = require('ws');
-const Y = require('yjs');
-const {encodeMessage, loadState} = require('./ws-util-server.js');
-const {MESSAGE} = require('./ws-constants-server.js');
+import url from 'url';
+import {WebSocketServer} from 'ws';
+import Z from 'zjs';
+import {encodeMessage} from './ws-util-server.mjs';
+import {MESSAGE} from './ws-constants-server.mjs';
 
 const appsMapName = 'apps';
 const playersMapName = 'players';
@@ -209,7 +209,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
     return room;
   };
   
-  const wss = new ws.WebSocketServer({
+  const wss = new WebSocketServer({
     noServer: true,
   });
   wss.on('connection', (ws, req) => {
@@ -358,6 +358,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
   }
 };
 
-module.exports = {
+const WSRTC = {
   bindServer,
 };
+export default WSRTC;
