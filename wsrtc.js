@@ -2,7 +2,7 @@ import {channelCount, sampleRate, bitrate, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer/*, loadState*/} from './ws-util.js';
-import * as Y from 'yjs';
+import * as Z from 'zjs';
 
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
@@ -14,7 +14,7 @@ function formatWorldUrl(u, localPlayer) {
 class WSRTC extends EventTarget {
   constructor(u = '', {
     localPlayer = null,
-    crdtState = new Y.Doc(),
+    crdtState = new Z.Doc(),
   } = {}) {
     super();
     
@@ -89,7 +89,7 @@ class WSRTC extends EventTarget {
             const data = new Uint8Array(e.data, index, roomDataByteLength);
             console.log('crdt load');
             this.crdtState.transact(() => {
-              Y.applyUpdate(this.crdtState, data);
+              Z.applyUpdate(this.crdtState, data);
             });
             
             // log
@@ -139,7 +139,7 @@ class WSRTC extends EventTarget {
       const _handleStateUpdateMessage = (e, dataView) => {
         const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const data = new Uint8Array(dataView.buffer, dataView.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-        Y.applyUpdate(this.crdtState, data);
+        Z.applyUpdate(this.crdtState, data);
       };
       const _handleAudioMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
@@ -166,7 +166,7 @@ class WSRTC extends EventTarget {
         if (player) {
           const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
           const data = new Uint8Array(e.data, 3 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-          Y.applyUpdate(player.state, data);
+          Z.applyUpdate(player.state, data);
         } else {
           console.warn('message for unknown player ' + id);
         }
@@ -174,7 +174,7 @@ class WSRTC extends EventTarget {
       const _handleRoomStateMessage = (e, dataView) => {
         const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const data = new Uint8Array(e.data, 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-        Y.applyUpdate(this.room.state, data);
+        Z.applyUpdate(this.room.state, data);
       }; */
       const mainMessage = e => {
         const dataView = new DataView(e.data);
@@ -259,7 +259,7 @@ class WSRTC extends EventTarget {
   }
   pushUserState(userState) {
     if (this.localUser.id) {
-      const encodedUserState = Y.encodeStateAsUpdate(userState);
+      const encodedUserState = Z.encodeStateAsUpdate(userState);
       this.sendMessage([
         MESSAGE.USERSTATE,
         this.localUser.id,

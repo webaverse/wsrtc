@@ -23,7 +23,7 @@
     "ws": "^8.2.0"
   },
   "peerDependencies": {
-    "yjs": ""
+    "zjs": ""
   },
   "browserslist": [
     "last 1 chrome version"
