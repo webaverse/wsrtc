@@ -81,14 +81,16 @@ class Room {
     nextState.setMirror(true);
     nextState.setResolvePriority(0);
     
-    const stateUpdateFn = (encodedUpdate, origin) => {
+    const stateUpdateFn = (encodedUpdate, transactionOrigin) => {
       let encodedMessage = encodeMessage([
         MESSAGE.STATE_UPDATE,
         encodedUpdate,
       ]);
       encodedMessage = encodedMessage.slice(); // deduplicate
       for (const player of this.players) {
-        player.ws.send(encodedMessage);
+        if (player.playerId !== transactionOrigin) {
+          player.ws.send(encodedMessage);
+        }
       }
     };
     this.state.on('update', stateUpdateFn);
@@ -195,7 +197,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
           case MESSAGE.STATE_UPDATE: {
             const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-            Z.applyUpdate(room.state, data);
+            Z.applyUpdate(room.state, data, playerId);
             
             // room.save();
             break;
