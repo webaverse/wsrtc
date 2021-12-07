@@ -44,6 +44,7 @@ const _setDocFromObject = (state, o) => {
       _setObjectFromObject(state.getMap(k), v);
     }
   }
+  state.getArray(playersMapName);
 };
 
 class Player {
