@@ -53,7 +53,7 @@ class Player {
   }
 }
 
-const maxFloatingUpdates = 100;
+// const maxFloatingUpdates = 100;
 class Room {
   constructor(name, initialState) {
     this.name = name;
