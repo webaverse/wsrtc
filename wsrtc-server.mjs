@@ -140,7 +140,7 @@ class Room {
   destroy() {
     this.unbindState();
     
-    for (const player of room.players) {
+    for (const player of this.players) {
       player.ws.terminate();
     }
   }
