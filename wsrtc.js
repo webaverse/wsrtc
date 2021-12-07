@@ -87,15 +87,15 @@ class WSRTC extends EventTarget {
             const roomDataByteLength = uint32Array[index/Uint32Array.BYTES_PER_ELEMENT];
             index += Uint32Array.BYTES_PER_ELEMENT;
             const data = new Uint8Array(e.data, index, roomDataByteLength);
-            console.log('crdt load');
+            // console.log('crdt load');
             this.crdtState.transact(() => {
               Z.applyUpdate(this.crdtState, data);
             });
             
             // log
-            console.log('init wsrtc 1', this.crdtState.toJSON());
+            // console.log('init wsrtc 1', this.crdtState.toJSON());
             this.dispatchEvent(new MessageEvent('init'));
-            console.log('init wsrtc 2', this.crdtState.toJSON());
+            // console.log('init wsrtc 2', this.crdtState.toJSON());
             
             break;
           }
