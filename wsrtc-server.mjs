@@ -78,6 +78,8 @@ class Room {
     this.unbindState();
     
     this.state = nextState;
+    nextState.setMirror(true);
+    nextState.setResolvePriority(0);
     
     const stateUpdateFn = (encodedUpdate, origin) => {
       let encodedMessage = encodeMessage([
