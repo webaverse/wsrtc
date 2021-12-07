@@ -259,6 +259,9 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
                 
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ok: true}));
+              } else {
+                res.status = 400;
+                res.end('bad request');
               }
             });
           } else {
