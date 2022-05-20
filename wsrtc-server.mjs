@@ -1,6 +1,7 @@
 import url from 'url';
 import {WebSocketServer} from 'ws';
-import Z from 'zjs';
+// import Z from 'zjs';
+import Z from '../zjs/z.mjs';
 import {encodeMessage} from './ws-util-server.mjs';
 import {MESSAGE} from './ws-constants-server.mjs';
 

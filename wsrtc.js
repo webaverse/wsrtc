@@ -2,7 +2,8 @@ import {channelCount, sampleRate, bitrate, MESSAGE} from './ws-constants.js';
 import {WsEncodedAudioChunk, WsMediaStreamAudioReader, WsAudioEncoder, WsAudioDecoder} from './ws-codec.js';
 import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer/*, loadState*/} from './ws-util.js';
-import * as Z from 'zjs';
+// import * as Z from 'zjs';
+import * as Z from '../zjs/z.mjs';
 
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
