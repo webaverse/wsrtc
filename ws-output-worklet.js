@@ -24,6 +24,12 @@ class WsOutputWorklet extends AudioWorkletProcessor {
     for (const frames of output) {
       bufferIndex = 0;
       frameIndex = 0;
+
+      // if the buffer is too big, delete it
+      if (bufferIndex > 50) {
+        this.buffers.splice(0, bufferIndex - 30);
+      }
+
       if (bufferIndex < this.buffers.length) {
         for (let i = 0; i < frames.length; i++) {
           const buffer = this.buffers[bufferIndex];
