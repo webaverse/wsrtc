@@ -191,7 +191,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
         encodedStateData,
       ]);
       
-      ws.addEventListener('message', e => {
+      ws.addEventListener('message', (e) => {
         const dataView = new DataView(e.data.buffer, e.data.byteOffset);
         const method = dataView.getUint32(0, true);
         switch (method) {
@@ -201,6 +201,13 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             Z.applyUpdate(room.state, data, playerId);
             
             // room.save();
+            break;
+          }
+          case MESSAGE.AUDIO: {
+            room.players.forEach(player => {
+              if (player === localPlayer) return;
+              player.ws.send(e.data);
+            })
             break;
           }
         }
