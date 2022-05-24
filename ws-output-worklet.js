@@ -1,6 +1,6 @@
 const volumeUpdateRate = 20;
 const volumeScale = 2;
-
+const audioBufferLength = 30;
 class WsOutputWorklet extends AudioWorkletProcessor {
   constructor (...args) {
     super(...args);
@@ -12,6 +12,10 @@ class WsOutputWorklet extends AudioWorkletProcessor {
     
     this.port.onmessage = e => {
       this.buffers.push(e.data);
+      // if the buffer is too big, delete it
+      if (this.buffers.length > audioBufferLength) {
+        this.buffers.splice(0, this.buffers.length - audioBufferLength);
+      }
     };
   }
   process(inputs, outputs, parameters) {
@@ -21,15 +25,9 @@ class WsOutputWorklet extends AudioWorkletProcessor {
     } */
     // console.log('outputs', outputs.length);
     let bufferIndex, frameIndex;
-    const audioBufferLength = 30;
     for (const frames of output) {
       bufferIndex = 0;
       frameIndex = 0;
-
-      // if the buffer is too big, delete it
-      if (bufferIndex > audioBufferLength) {
-        this.buffers.splice(0, bufferIndex - audioBufferLength);
-      }
 
       if (bufferIndex < this.buffers.length) {
         for (let i = 0; i < frames.length; i++) {
