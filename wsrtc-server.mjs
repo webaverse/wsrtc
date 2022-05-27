@@ -191,7 +191,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
         encodedStateData,
       ]);
       
-      ws.addEventListener('message', e => {
+      ws.addEventListener('message', (e) => {
         const dataView = new DataView(e.data.buffer, e.data.byteOffset);
         const method = dataView.getUint32(0, true);
         switch (method) {
@@ -210,6 +210,7 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             })
             break;
           }
+<<<<<<< HEAD
           case MESSAGE.CHAT: {
             room.players.forEach(player => {
               if (player === localPlayer) return;
@@ -217,6 +218,8 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             })
             break;
           }
+=======
+>>>>>>> 13410dde453332a236e4957eafe2395e49df182e
         }
       });
     } else {

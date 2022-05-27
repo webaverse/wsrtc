@@ -154,9 +154,7 @@ class WSRTC extends EventTarget {
         Z.applyUpdate(this.crdtState, data);
       };
       const _handleAudioMessage = (e, dataView) => {
-        const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-        const player = this.users.get(id);
-        if (player) {
+        const playerId = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
           const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
           const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
           const byteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
@@ -167,6 +165,7 @@ class WSRTC extends EventTarget {
             timestamp,
             data,
           });
+<<<<<<< HEAD
           player.audioDecoder.decode(encodedAudioChunk);
         } else {
           console.warn('message for unknown player ' + id);
@@ -196,6 +195,20 @@ class WSRTC extends EventTarget {
         console.log("chat message", playerId, chatMessage)
       };
 
+=======
+
+          this.dispatchEvent(
+            new MessageEvent('audio', {
+              data: {
+                playerId,
+                data: encodedAudioChunk
+              },
+            })
+          );
+
+        };
+      
+>>>>>>> 13410dde453332a236e4957eafe2395e49df182e
       /* const _handleUserStateMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const player = this.users.get(id);
@@ -354,7 +367,7 @@ class WSRTC extends EventTarget {
       const data = getEncodedAudioChunkBuffer(encodedChunk);
       this.sendAudioMessage(
         MESSAGE.AUDIO,
-        this.localPlayer.playerId,
+        this.localPlayer.playerIdInt,
         type,
         timestamp,
         data,
