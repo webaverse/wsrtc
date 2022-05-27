@@ -177,7 +177,6 @@ class WSRTC extends EventTarget {
           );
 
         };
-
       const _handleChatMessage = (e, dataView) => {
         const textDecoder = new TextDecoder();
         const playerIdLen = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
