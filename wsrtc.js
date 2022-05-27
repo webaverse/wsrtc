@@ -6,7 +6,6 @@ import * as Z from 'zjs';
 
 import metaversefileApi from 'metaversefile';
 
-
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
   const url = new URL(u);
