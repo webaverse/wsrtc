@@ -4,11 +4,23 @@ import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer/*, loadState*/} from './ws-util.js';
 import * as Z from 'zjs';
 
+import metaversefileApi from 'metaversefile';
+
+
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
   const url = new URL(u);
   url.searchParams.set('playerId', localPlayer.playerId ?? '');
   return url.toString();
+}
+
+function makeId(length) {
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
 }
 
 class WSRTC extends EventTarget {
@@ -160,6 +172,30 @@ class WSRTC extends EventTarget {
           console.warn('message for unknown player ' + id);
         }
       };
+
+      const _handleChatMessage = (e, dataView) => {
+        const textDecoder = new TextDecoder();
+        const playerIdLen = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
+        const decodeMessage = textDecoder.decode(new Uint8Array(e.data, 3*Uint32Array.BYTES_PER_ELEMENT, byteLength));
+        const playerId = decodeMessage.slice(0, playerIdLen);
+        const chatMessage = decodeMessage.slice(playerIdLen);
+
+
+        const player = metaversefileApi.useRemotePlayer(playerId);
+        const localPlayer = metaversefileApi.useLocalPlayer();
+        console.log("message sender", player)
+        const chatId = makeId(5);
+        localPlayer.addAction({
+          type: 'chat',
+          chatId,
+          playerName: player.name,
+          message: chatMessage
+        })
+
+        console.log("chat message", playerId, chatMessage)
+      };
+
       /* const _handleUserStateMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const player = this.users.get(id);
@@ -192,6 +228,9 @@ class WSRTC extends EventTarget {
             break;
           case MESSAGE.AUDIO:
             _handleAudioMessage(e, dataView);
+            break;
+          case MESSAGE.CHAT:
+            _handleChatMessage(e, dataView);
             break;
           default:
             console.warn('unknown method id: ' + method);
@@ -276,6 +315,16 @@ class WSRTC extends EventTarget {
   sendAudioMessage(method, id, type, timestamp, data) { // for performance
     const encodedMessage = encodeAudioMessage(method, id, type, timestamp, data);
     this.ws.send(encodedMessage);
+  }
+  sendChatMessage(data) {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      let playerId = this.localPlayer.playerId;
+      let msg = data.message;
+      let total_msg = playerId + msg;
+      let playerId_len = playerId.length;
+      let encodedMessage = encodeMessage([MESSAGE.CHAT, playerId_len, total_msg ])
+      this.ws.send(encodedMessage)
+    }
   }
   /* sendPoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) { // for performance
     const encodedMessage = encodePoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength);

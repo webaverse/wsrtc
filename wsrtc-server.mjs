@@ -203,6 +203,20 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             // room.save();
             break;
           }
+          case MESSAGE.AUDIO: {
+            room.players.forEach(player => {
+              if (player === localPlayer) return;
+              player.ws.send(e.data);
+            })
+            break;
+          }
+          case MESSAGE.CHAT: {
+            room.players.forEach(player => {
+              if (player === localPlayer) return;
+              player.ws.send(e.data);
+            })
+            break;
+          }
         }
       });
     } else {
