@@ -210,7 +210,6 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             })
             break;
           }
-<<<<<<< HEAD
           case MESSAGE.CHAT: {
             room.players.forEach(player => {
               if (player === localPlayer) return;
@@ -218,8 +217,6 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             })
             break;
           }
-=======
->>>>>>> 13410dde453332a236e4957eafe2395e49df182e
         }
       });
     } else {

@@ -153,6 +153,7 @@ class WSRTC extends EventTarget {
         const data = new Uint8Array(dataView.buffer, dataView.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
         Z.applyUpdate(this.crdtState, data);
       };
+      
       const _handleAudioMessage = (e, dataView) => {
         const playerId = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
           const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
@@ -165,12 +166,17 @@ class WSRTC extends EventTarget {
             timestamp,
             data,
           });
-<<<<<<< HEAD
-          player.audioDecoder.decode(encodedAudioChunk);
-        } else {
-          console.warn('message for unknown player ' + id);
-        }
-      };
+
+          this.dispatchEvent(
+            new MessageEvent('audio', {
+              data: {
+                playerId,
+                data: encodedAudioChunk
+              },
+            })
+          );
+
+        };
 
       const _handleChatMessage = (e, dataView) => {
         const textDecoder = new TextDecoder();
@@ -183,7 +189,6 @@ class WSRTC extends EventTarget {
 
         const player = metaversefileApi.useRemotePlayer(playerId);
         const localPlayer = metaversefileApi.useLocalPlayer();
-        console.log("message sender", player)
         const chatId = makeId(5);
         localPlayer.addAction({
           type: 'chat',
@@ -195,20 +200,6 @@ class WSRTC extends EventTarget {
         console.log("chat message", playerId, chatMessage)
       };
 
-=======
-
-          this.dispatchEvent(
-            new MessageEvent('audio', {
-              data: {
-                playerId,
-                data: encodedAudioChunk
-              },
-            })
-          );
-
-        };
-      
->>>>>>> 13410dde453332a236e4957eafe2395e49df182e
       /* const _handleUserStateMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const player = this.users.get(id);
