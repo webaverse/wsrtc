@@ -210,6 +210,13 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             })
             break;
           }
+          case MESSAGE.CHAT: {
+            room.players.forEach(player => {
+              if (player === localPlayer) return;
+              player.ws.send(e.data);
+            })
+            break;
+          }
         }
       });
     } else {

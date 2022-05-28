@@ -10,7 +10,6 @@ function formatWorldUrl(u, localPlayer) {
   url.searchParams.set('playerId', localPlayer.playerId ?? '');
   return url.toString();
 }
-
 class WSRTC extends EventTarget {
   constructor(u = '', {
     localPlayer = null,
@@ -141,6 +140,7 @@ class WSRTC extends EventTarget {
         const data = new Uint8Array(dataView.buffer, dataView.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
         Z.applyUpdate(this.crdtState, data);
       };
+      
       const _handleAudioMessage = (e, dataView) => {
         const playerId = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
           const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
@@ -164,7 +164,25 @@ class WSRTC extends EventTarget {
           );
 
         };
-      
+      const _handleChatMessage = (e, dataView) => {
+        const textDecoder = new TextDecoder();
+        const playerIdLen = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
+        const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
+        const decodeMessage = textDecoder.decode(new Uint8Array(e.data, 3*Uint32Array.BYTES_PER_ELEMENT, byteLength));
+        const playerId = decodeMessage.slice(0, playerIdLen);
+        const chatMessage = decodeMessage.slice(playerIdLen);
+
+        this.dispatchEvent(
+          new MessageEvent('chat', {
+            data: {
+              playerId,
+              message: chatMessage
+            },
+          })
+        );
+
+      };
+
       /* const _handleUserStateMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
         const player = this.users.get(id);
@@ -197,6 +215,9 @@ class WSRTC extends EventTarget {
             break;
           case MESSAGE.AUDIO:
             _handleAudioMessage(e, dataView);
+            break;
+          case MESSAGE.CHAT:
+            _handleChatMessage(e, dataView);
             break;
           default:
             console.warn('unknown method id: ' + method);
@@ -281,6 +302,16 @@ class WSRTC extends EventTarget {
   sendAudioMessage(method, id, type, timestamp, data) { // for performance
     const encodedMessage = encodeAudioMessage(method, id, type, timestamp, data);
     this.ws.send(encodedMessage);
+  }
+  sendChatMessage(data) {
+    if (this.ws.readyState === WebSocket.OPEN) {
+      let playerId = this.localPlayer.playerId;
+      let msg = data.message;
+      let total_msg = playerId + msg;
+      let playerId_len = playerId.length;
+      let encodedMessage = encodeMessage([MESSAGE.CHAT, playerId_len, total_msg ])
+      this.ws.send(encodedMessage)
+    }
   }
   /* sendPoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) { // for performance
     const encodedMessage = encodePoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength);
