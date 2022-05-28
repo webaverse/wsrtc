@@ -4,11 +4,6 @@ import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer/*, loadState*/} from './ws-util.js';
 import * as Z from 'zjs';
 
-<<<<<<< HEAD
-=======
-import metaversefileApi from 'metaversefile';
-
->>>>>>> 77a7cac36258ed75c3de8b870369a339140852ba
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
   const url = new URL(u);
