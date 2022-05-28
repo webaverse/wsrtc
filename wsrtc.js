@@ -4,25 +4,12 @@ import {ensureAudioContext, getAudioContext} from './ws-audio-context.js';
 import {encodeMessage, encodeAudioMessage, encodePoseMessage, encodeTypedMessage, decodeTypedMessage, getEncodedAudioChunkBuffer, getAudioDataBuffer/*, loadState*/} from './ws-util.js';
 import * as Z from 'zjs';
 
-import metaversefileApi from 'metaversefile';
-
-
 function formatWorldUrl(u, localPlayer) {
   u = u.replace(/^http(s?)/, 'ws$1');
   const url = new URL(u);
   url.searchParams.set('playerId', localPlayer.playerId ?? '');
   return url.toString();
 }
-
-function makeId(length) {
-  let result = '';
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return result;
-}
-
 class WSRTC extends EventTarget {
   constructor(u = '', {
     localPlayer = null,
@@ -186,18 +173,15 @@ class WSRTC extends EventTarget {
         const playerId = decodeMessage.slice(0, playerIdLen);
         const chatMessage = decodeMessage.slice(playerIdLen);
 
+        this.dispatchEvent(
+          new MessageEvent('chat', {
+            data: {
+              playerId,
+              message: chatMessage
+            },
+          })
+        );
 
-        const player = metaversefileApi.useRemotePlayer(playerId);
-        const localPlayer = metaversefileApi.useLocalPlayer();
-        const chatId = makeId(5);
-        localPlayer.addAction({
-          type: 'chat',
-          chatId,
-          playerName: player.name,
-          message: chatMessage
-        })
-
-        console.log("chat message", playerId, chatMessage)
       };
 
       /* const _handleUserStateMessage = (e, dataView) => {
