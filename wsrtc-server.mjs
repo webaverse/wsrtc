@@ -199,18 +199,9 @@ const bindServer = (server, {initialRoomState = null, initialRoomNames = []} = [
             const byteLength = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
             const data = new Uint8Array(e.data.buffer, e.data.byteOffset + 2 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
             Z.applyUpdate(room.state, data, playerId);
-            
-            // room.save();
             break;
           }
           case MESSAGE.AUDIO: {
-            room.players.forEach(player => {
-              if (player === localPlayer) return;
-              player.ws.send(e.data);
-            })
-            break;
-          }
-          case MESSAGE.CHAT: {
             room.players.forEach(player => {
               if (player === localPlayer) return;
               player.ws.send(e.data);

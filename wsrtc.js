@@ -164,24 +164,6 @@ class WSRTC extends EventTarget {
           );
 
         };
-      const _handleChatMessage = (e, dataView) => {
-        const textDecoder = new TextDecoder();
-        const playerIdLen = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-        const byteLength = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true);
-        const decodeMessage = textDecoder.decode(new Uint8Array(e.data, 3*Uint32Array.BYTES_PER_ELEMENT, byteLength));
-        const playerId = decodeMessage.slice(0, playerIdLen);
-        const chatMessage = decodeMessage.slice(playerIdLen);
-
-        this.dispatchEvent(
-          new MessageEvent('chat', {
-            data: {
-              playerId,
-              message: chatMessage
-            },
-          })
-        );
-
-      };
 
       /* const _handleUserStateMessage = (e, dataView) => {
         const id = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
@@ -216,9 +198,6 @@ class WSRTC extends EventTarget {
           case MESSAGE.AUDIO:
             _handleAudioMessage(e, dataView);
             break;
-          case MESSAGE.CHAT:
-            _handleChatMessage(e, dataView);
-            break;
           default:
             console.warn('unknown method id: ' + method);
             break;
@@ -231,7 +210,7 @@ class WSRTC extends EventTarget {
         this.dispatchEvent(new MessageEvent('close'));
         this.crdtState.off('update', handleStateUpdate);
       });
-      
+
       const handleStateUpdate = (encodedUpdate, origin) => {
         this.sendMessage([
           MESSAGE.STATE_UPDATE,
@@ -245,7 +224,7 @@ class WSRTC extends EventTarget {
         data: err,
       }));
     });
-    
+
     this.addEventListener('close', () => {
       // this.users = new Map();
       
@@ -254,7 +233,7 @@ class WSRTC extends EventTarget {
       }
       if (this.audioReader) {
         this.audioReader.cancel();
-        this.audioReader = null;;
+        this.audioReader = null;
       }
       if (this.audioEncoder) {
         this.audioEncoder.close();
@@ -302,16 +281,6 @@ class WSRTC extends EventTarget {
   sendAudioMessage(method, id, type, timestamp, data) { // for performance
     const encodedMessage = encodeAudioMessage(method, id, type, timestamp, data);
     this.ws.send(encodedMessage);
-  }
-  sendChatMessage(data) {
-    if (this.ws.readyState === WebSocket.OPEN) {
-      let playerId = this.localPlayer.playerId;
-      let msg = data.message;
-      let total_msg = playerId + msg;
-      let playerId_len = playerId.length;
-      let encodedMessage = encodeMessage([MESSAGE.CHAT, playerId_len, total_msg ])
-      this.ws.send(encodedMessage)
-    }
   }
   /* sendPoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) { // for performance
     const encodedMessage = encodePoseMessage(method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength);

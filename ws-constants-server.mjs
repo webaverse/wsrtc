@@ -5,6 +5,5 @@ export const MESSAGE = (() => {
     AUDIO: i++,
     STATE_UPDATE: i++,
     STATE_REFRESH: i++,
-    CHAT: i++,
   };
 })();
