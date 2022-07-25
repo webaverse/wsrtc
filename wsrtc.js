@@ -145,10 +145,9 @@ class WSRTC extends EventTarget {
           const type = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
           const timestamp = dataView.getFloat32(2*Uint32Array.BYTES_PER_ELEMENT, true);
           const byteLength = dataView.getUint32(3*Uint32Array.BYTES_PER_ELEMENT, true);
-          const playerIdByteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
-          const playerIdData = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, playerIdByteLength);
+          const playerIdData = new Uint8Array(e.data, 4*Uint32Array.BYTES_PER_ELEMENT, 5);
           const playerId = String.fromCharCode.apply(null, playerIdData);
-          const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT + playerIdByteLength, byteLength);
+          const data = new Uint8Array(e.data, 4 * Uint32Array.BYTES_PER_ELEMENT + 5, byteLength);
 
         // convert the UInt8Array of characters to a string
           const encodedAudioChunk = new WsEncodedAudioChunk({
@@ -309,7 +308,6 @@ class WSRTC extends EventTarget {
     this.audioReader = audioReader;
     
     const muxAndSend = encodedChunk => {
-      console.log('sending audio chunk')
       const {type, timestamp} = encodedChunk;
       const data = getEncodedAudioChunkBuffer(encodedChunk);
       this.sendAudioMessage(

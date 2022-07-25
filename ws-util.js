@@ -31,29 +31,17 @@ export const encodeMessage = parts => {
 export const encodeAudioMessage = (method, id, type, timestamp, data) => {
   let index = 0;
 
-  // id is a 5-character string
-  // convert to UTF-8 encode as a UInt8Array
-  const idUint8Array = textEncoder.encode(id);
-  console.log('player id byte length is', idUint8Array.byteLength);
-
   encodedMessageDataView.setUint32(index, method, true);
   index += Uint32Array.BYTES_PER_ELEMENT;
-
   encodedMessageDataView.setUint32(index, type === 'key' ? 0 : 1, true);
   index += Uint32Array.BYTES_PER_ELEMENT;
-
   encodedMessageDataView.setFloat32(index, timestamp, true);
   index += Float32Array.BYTES_PER_ELEMENT;
-
   encodedMessageDataView.setUint32(index, data.byteLength, true);
   index += Uint32Array.BYTES_PER_ELEMENT;
-
-  encodedMessageDataView.setUint32(index, idUint8Array.byteLength, true);
-  index += Uint32Array.BYTES_PER_ELEMENT;
-
-  encodedMessageUint8Array.set(idUint8Array, index);
-  index += idUint8Array.byteLength;
-
+  const idEncoded = textEncoder.encode(id);
+  encodedMessageUint8Array.set(idEncoded, index);
+  index += idEncoded.byteLength;
   encodedMessageUint8Array.set(data, index);
   index += data.byteLength;
 
