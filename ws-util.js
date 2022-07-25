@@ -30,7 +30,6 @@ export const encodeMessage = parts => {
 };
 export const encodeAudioMessage = (method, id, type, timestamp, data) => {
   let index = 0;
-
   encodedMessageDataView.setUint32(index, method, true);
   index += Uint32Array.BYTES_PER_ELEMENT;
   encodedMessageDataView.setUint32(index, type === 'key' ? 0 : 1, true);
@@ -44,7 +43,6 @@ export const encodeAudioMessage = (method, id, type, timestamp, data) => {
   index += idEncoded.byteLength;
   encodedMessageUint8Array.set(data, index);
   index += data.byteLength;
-
   return new Uint8Array(encodedMessageUint8Array.buffer, encodedMessageUint8Array.byteOffset, index);
 };
 export const encodePoseMessage = (method, id, p, q, s, extraUint8ArrayFull, extraUint8ArrayByteLength) => {

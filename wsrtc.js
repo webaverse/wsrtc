@@ -149,7 +149,6 @@ class WSRTC extends EventTarget {
           const playerId = String.fromCharCode.apply(null, playerIdData);
           const data = new Uint8Array(e.data, 4 * Uint32Array.BYTES_PER_ELEMENT + 5, byteLength);
 
-        // convert the UInt8Array of characters to a string
           const encodedAudioChunk = new WsEncodedAudioChunk({
             type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
             timestamp,
@@ -159,7 +158,7 @@ class WSRTC extends EventTarget {
           this.dispatchEvent(
             new MessageEvent('audio', {
               data: {
-                playerId: playerId,
+                playerId,
                 data: encodedAudioChunk
               },
             })
