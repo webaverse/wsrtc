@@ -142,12 +142,15 @@ class WSRTC extends EventTarget {
       };
       
       const _handleAudioMessage = (e, dataView) => {
-        const playerId = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true);
-          const type = dataView.getUint32(2*Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
-          const timestamp = dataView.getFloat32(3*Uint32Array.BYTES_PER_ELEMENT, true);
-          const byteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
-          const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, byteLength);
-          
+          const type = dataView.getUint32(Uint32Array.BYTES_PER_ELEMENT, true) === 0 ? 'key' : 'delta';
+          const timestamp = dataView.getFloat32(2*Uint32Array.BYTES_PER_ELEMENT, true);
+          const byteLength = dataView.getUint32(3*Uint32Array.BYTES_PER_ELEMENT, true);
+          const playerIdByteLength = dataView.getUint32(4*Uint32Array.BYTES_PER_ELEMENT, true);
+          const playerIdData = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT, playerIdByteLength);
+          const playerId = String.fromCharCode.apply(null, playerIdData);
+          const data = new Uint8Array(e.data, 5 * Uint32Array.BYTES_PER_ELEMENT + playerIdByteLength, byteLength);
+
+        // convert the UInt8Array of characters to a string
           const encodedAudioChunk = new WsEncodedAudioChunk({
             type: 'key', // XXX: hack! when this is 'delta', you get Uncaught DOMException: Failed to execute 'decode' on 'AudioDecoder': A key frame is required after configure() or flush().
             timestamp,
@@ -157,7 +160,7 @@ class WSRTC extends EventTarget {
           this.dispatchEvent(
             new MessageEvent('audio', {
               data: {
-                playerId,
+                playerId: playerId,
                 data: encodedAudioChunk
               },
             })
@@ -306,11 +309,12 @@ class WSRTC extends EventTarget {
     this.audioReader = audioReader;
     
     const muxAndSend = encodedChunk => {
+      console.log('sending audio chunk')
       const {type, timestamp} = encodedChunk;
       const data = getEncodedAudioChunkBuffer(encodedChunk);
       this.sendAudioMessage(
         MESSAGE.AUDIO,
-        this.localPlayer.playerIdInt,
+        this.localPlayer.playerId,
         type,
         timestamp,
         data,
